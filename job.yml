@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Job
+metadata:
+  name: dup
+spec:
+  template:
+    spec:
+      containers:
+      - name: dup
+        image: dupDir
+      restartPolicy: Never
+  backoffLimit: 4
