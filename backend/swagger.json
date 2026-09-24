@@ -1,0 +1,895 @@
+{
+    "swagger": "2.0",
+    "info": {
+      "version": "1.0.0",
+      "title": "iTelemetry APIs",
+      "description": "<p>The iTelemetry API provides robust monitoring capabilities for infrastructure and applications, allowing users to track critical metrics efficiently. This API enables users to retrieve real-time status updates or logs within specific timeframes, using parameters such as server names, thresholds, and duration. Users can specify a boolean flag to fetch either the latest status of critical services or comprehensive logs. Additionally, the API supports filtering records based on a threshold value between 0 and 100, helping identify performance anomalies. The flexible time format ('yyyy-mm-dd HH:MM:SS') allows users to set precise data collection windows, enhancing diagnostic accuracy.</p>"
+    },
+    "basePath": "/api",
+    "paths": {
+      "/getSecrets":{
+        "post":{
+          "tags":["Access Validation"],
+          "description": "Get Secret Values from Azure Key vault for secure usage of passwords, client secrets. The VMs are configured with Managed Identity which helps access from key Vault.",
+          "summary": "Fetch Secrets from Azure Key Vault",
+          "parameters": [
+            {
+              "name": "user",
+              "in": "body",
+              "description": "<p>Description of each Key of the parameter object</p><ol><li><b>secretName:</b>The key value in which the Secret is stored in Azure Key Vault(akv-monitoring-01)</li></ol>",
+              "schema": {
+                "type":"object",
+                "properties":{
+                  "secretName":{
+                    "type":"string",
+                    "description":"Name of Secret to be retrieved from Key Vault."
+                  }
+                }
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful",
+              "schema": {
+                "type":"string"
+              }
+            }
+          }
+        }
+      },
+      "/checkLogAnalyticsAccess":{
+        "get":{
+          "tags":["Access Validation"],
+          "summary": "Validate if Log Analytics is Accessible via Managed Identity from Staging or Production VMs",
+          "description": "Check Log Analytics Access",
+          "parameters": [
+            
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful",
+              "schema": {
+                "type":"string"
+              }
+            }
+          }
+        }
+      },
+      
+      "/filters": {
+        "post": {
+          "tags":["Application"],
+          "summary": "Application Family, Application CI, Support Group, Managed By Group",
+          "description": "Retrieve the mapping of Application Family with its corresponding Application Configuration Item (CI), Managed By Group, and Support Group.",
+          "parameters": [
+            {
+              "name": "user",
+              "in": "body",
+              "description": "<p>Description of each Key of the parameter object</p><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol>",
+              "schema": {
+                "$ref": "#/definitions/Filters"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful",
+              "schema": {
+                "$ref": "#/definitions/Filters"
+              }
+            }
+          }
+        }
+      },
+        
+        "/serverLogs":{
+          "post": {
+            "tags":["Infrastructure"],
+            "summary": "Retrieve the mapping of Server Name with its corresponding Application Family, Hosting Type, Application Configuration Item (CI), Managed By Group, and Support Group.",
+            "description": "Returns all Server related Data",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li></ol>",
+                "schema": {
+                  "$ref": "#/definitions/serverLogsParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/serverStatus":{
+          "post": {
+            "tags":["Infrastructure"],
+            "summary": "Retrieve the status (up or down) of all servers based on their heartbeat signals.",
+            "description": "Returns all Server Status Data",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li> <li><b>serverName:</b>A comma-separated list of server names, for example: 'avaxxxxx, mosayyyyy, acuzzzzz'.</li></ol>",
+                "schema": {
+                  "$ref": "#/definitions/serverStatusParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/windowEventLogs":{
+          "post": {
+            "tags":["Infrastructure"],
+            "summary": "Windows Event Logs from Azure VMs",
+            "description": "Returns all Application, system & security related Data",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "Retrieve Filters",
+                "schema": {
+                  "$ref": "#/definitions/windowsEventsParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/VMRebootLogs":{
+          "post": {
+            "tags":["Infrastructure"],
+            "summary": "Windows Reboot Logs from Azure VMs",
+            "description": "Returns all VM related Data",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "Retrieve VM Reboot Logs",
+                "schema": {
+                  "$ref": "#/definitions/windowsEventsParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/azureServerMetricsCPUDatalogs":{
+          "post": {
+            "tags":["Infrastructure"],
+            "description": "Retrieve CPU Utilization data of Azure, OnPrem VMs",
+            "summary": "Azure, OnPremise VMs CPU utilization Data onboarded into Azure Monitor/SCOM",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li><li><b>aggregate:</b>A boolean value (yes/no) that determines whether to fetch only the most recent status of critical services and URLs or to retrieve all logs within the selected time frame.</li><li><b>serverName:</b>A comma-separated list of server names, for example: 'avaxxxxx, mosayyyyy, acuzzzzz'.</li><li><b>threshold:</b>A value between 0 and 100, which serves as a threshold for retrieving all records that exceed this specified limit within the chosen or specified duration. Applicable only when 'aggregate' value is equal to <b>no</b></li><li><b>start_time:</b>The start time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li><li><b>end_time:</b>The end time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li></ol>",
+                "schema": {
+                  "$ref": "#/definitions/serverMetricParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/azureServerMetricsMemoryDatalogs":{
+          "post": {
+            "tags":["Infrastructure"],
+            "description": "Retrieve Memory Utilization data of Azure, OnPrem VMs",
+            "summary": "Azure, OnPremise VMs Memory(RAM) utilization Data onboarded into Azure Monitor/SCOM",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li><li><b>aggregate:</b>A boolean value (yes/no) that determines whether to fetch only the most recent status of critical services and URLs or to retrieve all logs within the selected time frame.</li><li><b>serverName:</b>A comma-separated list of server names, for example: 'avaxxxxx, mosayyyyy, acuzzzzz'.</li><li><b>threshold:</b>A value between 0 and 100, which serves as a threshold for retrieving all records that exceed this specified limit within the chosen or specified duration. Applicable only when 'aggregate' value is equal to <b>no</b></li><li><b>start_time:</b>The start time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li><li><b>end_time:</b>The end time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li></ol>",
+                "schema": {
+                  "$ref": "#/definitions/serverMetricParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/azureServerMetricsDiskDatalogs":{
+          "post": {
+            "tags":["Infrastructure"],
+            "description": "Retrieve Disk Utilization data including all drives of Azure, OnPrem VMs for which monitoring is enabled",
+            "summary": "Azure, OnPremise VMs Disk(All drives) utilization Data onboarded into Azure Monitor/SCOM",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li><li><b>aggregate:</b>A boolean value (yes/no) that determines whether to fetch only the most recent status of critical services and URLs or to retrieve all logs within the selected time frame.</li><li><b>serverName:</b>A comma-separated list of server names, for example: 'avaxxxxx, mosayyyyy, acuzzzzz'.</li><li><b>threshold:</b>A value between 0 and 100, which serves as a threshold for retrieving all records that exceed this specified limit within the chosen or specified duration. Applicable only when 'aggregate' value is equal to <b>no</b></li><li><b>start_time:</b>The start time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li><li><b>end_time:</b>The end time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li></ol>",
+                "schema": {
+                  "$ref": "#/definitions/serverMetricParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/databaseMetrics":{
+          "post": {
+            "tags":["Infrastructure"],
+            "description": "Retrieve Database Metrics data of Azure",
+            "summary": "Azure DB metrics data which includes CPU utilization, Storage Used, Deadloack Count, User Connection Failure etc.",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li><li><b>aggregate:</b>A boolean value (yes/no) that determines whether to fetch only the most recent status of critical services and URLs or to retrieve all logs within the selected time frame.</li></li><li><b>start_time:</b>The start time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li><li><b>end_time:</b>The end time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li></ol>",
+                "schema": {
+                  "$ref": "#/definitions/databaseParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/serviceLogs":{
+          "post": {
+            "tags":["Application"],
+            "description": "Retrieve the status (Running or Stoppes or Start Pending etc.) of all critical services, URLs onboarded based on the real time data from Azure/SCOM monitor.",
+            "summary": "Critical Windows Services, URLs status for onboarded application",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li><li><b>aggregate:</b>A boolean value (yes/no) that determines whether to fetch only the most recent status of critical services and URLs or to retrieve all logs within the selected time frame.</li><li><b>serverName:</b>A comma-separated list of server names, for example: 'avaxxxxx, mosayyyyy, acuzzzzz'.</li><li><b>start_time:</b>The start time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li><li><b>end_time:</b>The end time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li></ol>",
+                "schema": {
+                  "$ref": "#/definitions/serviceLogsParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/interfaceHealthLogs":{
+          "post": {
+            "tags":["Application"],
+            "summary": "Corpoint Interface Data",
+            "description": "Corepoint Interface Data from CP Monitor's 3,4,5. Based on application family an RPA script is run in the background to fetch these details.",
+            "parameters": [
+              {
+                "name": "user",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li><li><b>aggregate:</b>A boolean value (yes/no) that determines whether to fetch only the most recent status of critical services and URLs or to retrieve all logs within the selected time frame.</li><li><b>serverName:</b>A comma-separated list of server names, for example: 'avaxxxxx, mosayyyyy, acuzzzzz'.</li><li><b>start_time:</b>The start time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li><li><b>end_time:</b>The end time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li></ol>",
+                "schema": {
+                  "$ref": "#/definitions/interfaceParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        },
+        "/incidentLogs":{
+          "post": {
+            "tags":["Application"],
+            "summary": "Incident Telemetry from SNOW",
+            "description": "Retrieve Incident Data based on Timestamp, MI Status and Incident Status.",
+            "parameters": [
+              {
+                "name": "parameters",
+                "in": "body",
+                "description": "<p>Description of each Key of the parameter object</p><ol><li><b>filters:</b><ol><li><b>Array of Application Families:</b> For example, ['All'] implies that all application families are included. On the other hand, ['Avasure', 'Aria'] specifies that only the two mentioned application families should be considered.</li><li><b>Array of Application CI's:</b> For instance, ['All'] means all application configuration items are included. Conversely, ['Avasure-WAMT', 'Aria-AK'] indicates that only the specified application CIs are to be considered.</li><li><b>Array of Managed By Group:</b> For example, ['All'] denotes that all managed by groups are included. In contrast, ['IS Oncology', 'IS Cardiology'] specifies that only the two mentioned groups should be considered.</li><li><b>Array of Support Group:</b>For instance, ['All'] suggests that all support groups are included. Alternatively, ['IS Oncology', 'IS Cardiology'] indicates that only the two specified support groups are to be considered.</li></ol></li><li><b>aggregate:</b>A boolean value(yes/no) that determines whether to fetch only count of Incidents categorized based on incident status, or to retrieve all logs within the selected time frame.</li><li><b>miBool:</b>A boolean values(yes/no) which decides if the incident data required are MI or all Incidents.</li><li><b>active:</b>A boolean values(yes/no) which decides if the incident data required are currently active or all Incidents irrespective of incident status within the selected time frame.</li><li><b>start_time:</b>The start time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li><li><b>end_time:</b>The end time of the duration for which we want to retrieve data, in the following datetime format: 'yyyy-mm-dd HH:MM:SS'.</li></ol>",                
+                "schema": {
+                  "$ref": "#/definitions/incidentParams"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful Operation",
+                "schema": {
+                  "$ref": "#/definitions/logs"
+                }
+              },
+              "500": {
+                "description": "Exception Error code 500",
+                "schema": {
+                  "$ref": "#/definitions/error"
+                }
+              }
+            }
+          }
+        }
+    },
+    "definitions": {
+      "Filters": {
+        "type": "object",
+        "properties": {
+            "appFamily": {
+              "type": "array",
+              "items":{
+                  "type":"string",
+                  "example": "All"
+                  }
+            },
+            "appCI": {
+                "type": "array",
+                "items":{
+                  "type":"string"
+                  }
+            },
+            "managedByGroup": {
+                "type": "array",
+                "items":{
+                    "type":"string"
+                    }
+            },
+            "supportGroup": {
+                "type": "array",
+                "items":{
+                    "type":"string"
+                    }
+            }      
+        }
+        },
+        "serverLogsParams": {
+          "type": "object",
+          "properties": {
+              "filters": {
+                "type": "object",
+                "properties": {
+                    "appFamily": {
+                        "type": "array",
+                        "items":{
+                            "type":"string",
+                            "description": "Array of Application Family's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure', 'Aria'] tells to consider only 2 application family's mentioned."
+                            }
+                    },
+                    "appCI": {
+                        "type": "array",
+                        "items":{
+                            "type":"string",
+                            "description": "Array of Application CI's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure-WAMT', 'Aria-AK'] tells to consider only 2 application CI's mentioned."
+                            }
+                    },
+                    "managedByGroup": {
+                        "type": "array",
+                        "items":{
+                            "type":"string",
+                            "description": "Array of Managed By Group .For Instance, ['All'] indicates all Managed By Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Managed By Group's mentioned."
+                            }
+                    },
+                    "supportGroup": {
+                        "type": "array",
+                        "items":{
+                            "type":"string",
+                            "description": "Array of Support Group .For Instance, ['All'] indicates all Support Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Support Group's mentioned."
+                            }
+                    }      
+                }
+              }   
+          }
+        },
+        "serverStatusParams": {
+          "type": "object",
+              "properties": {
+                "filters": {
+                  "type": "object",
+                  "properties": {
+                      "appFamily": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Application Family's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure', 'Aria'] tells to consider only 2 application family's mentioned."
+                              }
+                      },
+                      "appCI": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Application CI's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure-WAMT', 'Aria-AK'] tells to consider only 2 application CI's mentioned."
+                              }
+                      },
+                      "managedByGroup": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Managed By Group .For Instance, ['All'] indicates all Managed By Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Managed By Group's mentioned."
+                              }
+                      },
+                      "supportGroup": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Support Group .For Instance, ['All'] indicates all Support Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Support Group's mentioned."
+                              }
+                      }      
+                  }
+                },
+                "serverName":{
+                  "type": "string",
+                  "description":", separated Server Names. For Instance, 'avaxxxxx, mosayyyyy, acuzzzzz'"
+                }    
+              }
+        },
+        "serviceLogsParams": {
+          "type": "object",
+          "properties": {
+            "filters": {
+              "type": "object",
+              "properties": {
+                  "appFamily": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Application Family's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure', 'Aria'] tells to consider only 2 application family's mentioned."
+                          }
+                  },
+                  "appCI": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Application CI's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure-WAMT', 'Aria-AK'] tells to consider only 2 application CI's mentioned."
+                          }
+                  },
+                  "managedByGroup": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Managed By Group .For Instance, ['All'] indicates all Managed By Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Managed By Group's mentioned."
+                          }
+                  },
+                  "supportGroup": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Support Group .For Instance, ['All'] indicates all Support Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Support Group's mentioned."
+                          }
+                  }      
+              }
+            },
+            "aggregate":{
+              "type": "string",
+              "description":"A boolean value(yes/no) that determines whether to fetch only the most recent status of critical services and URLs, or to retrieve all logs within the selected time frame."
+            },
+            "serverName":{
+              "type": "string",
+              "description":", separated Server Names. For Instance, 'avaxxxxx, mosayyyyy, acuzzzzz'"
+            },
+            "start_time": {
+              "type": "string",
+              "description": "The start time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+            },
+            "end_time": {
+              "type": "string",
+              "description": "The end time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+            }    
+          }
+        },
+        "serverMetricParams": {
+          "type": "object",
+              "properties": {
+                "filters": {
+                  "type": "object",
+                  "properties": {
+                      "appFamily": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Application Family's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure', 'Aria'] tells to consider only 2 application family's mentioned."
+                              }
+                      },
+                      "appCI": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Application CI's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure-WAMT', 'Aria-AK'] tells to consider only 2 application CI's mentioned."
+                              }
+                      },
+                      "managedByGroup": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Managed By Group .For Instance, ['All'] indicates all Managed By Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Managed By Group's mentioned."
+                              }
+                      },
+                      "supportGroup": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Support Group .For Instance, ['All'] indicates all Support Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Support Group's mentioned."
+                              }
+                      }      
+                  }
+                },
+                "aggregate":{
+                  "type": "string",
+                  "description":"A boolean value(yes/no) that determines whether to fetch only the most recent status of critical services and URLs, or to retrieve all logs within the selected time frame."
+                },
+                "serverName":{
+                  "type": "string",
+                  "description":", separated Server Names. For Instance, 'avaxxxxx, mosayyyyy, acuzzzzz'"
+                },
+                "threshold":{
+                  "type": "integer",
+                  "description":"Value between 0 and 100. This parameter helps in getting all records greater than a given threshold in the duration chosen or given."
+                },
+                "start_time": {
+                  "type": "string",
+                  "description": "The start time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+                },
+                "end_time": {
+                  "type": "string",
+                  "description": "The end time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+                }    
+              }
+        },
+        "databaseParams": {
+          "type": "object",
+              "properties": {
+                "filters": {
+                  "type": "object",
+                  "properties": {
+                      "appFamily": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Application Family's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure', 'Aria'] tells to consider only 2 application family's mentioned."
+                              }
+                      },
+                      "appCI": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Application CI's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure-WAMT', 'Aria-AK'] tells to consider only 2 application CI's mentioned."
+                              }
+                      },
+                      "managedByGroup": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Managed By Group .For Instance, ['All'] indicates all Managed By Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Managed By Group's mentioned."
+                              }
+                      },
+                      "supportGroup": {
+                          "type": "array",
+                          "items":{
+                              "type":"string",
+                              "description": "Array of Support Group .For Instance, ['All'] indicates all Support Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Support Group's mentioned."
+                              }
+                      }      
+                  }
+                },
+                "aggregate":{
+                  "type": "string",
+                  "description":"A boolean value(yes/no) that determines whether to fetch only the most recent status of critical services and URLs, or to retrieve all logs within the selected time frame."
+                },
+                "start_time": {
+                  "type": "string",
+                  "description": "The start time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+                },
+                "end_time": {
+                  "type": "string",
+                  "description": "The end time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+                }    
+              }
+        },
+        "windowsEventsParams": {
+          "type": "object",
+          "properties": {
+            "filters": {
+              "type": "object",
+              "properties": {
+                  "appFamily": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Application Family's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure', 'Aria'] tells to consider only 2 application family's mentioned."
+                          }
+                  },
+                  "appCI": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Application CI's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure-WAMT', 'Aria-AK'] tells to consider only 2 application CI's mentioned."
+                          }
+                  },
+                  "managedByGroup": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Managed By Group .For Instance, ['All'] indicates all Managed By Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Managed By Group's mentioned."
+                          }
+                  },
+                  "supportGroup": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Support Group .For Instance, ['All'] indicates all Support Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Support Group's mentioned."
+                          }
+                  }      
+              }
+            },
+            "aggregate":{
+              "type": "string",
+              "description":"A boolean value(yes/no) that determines whether to fetch only the most recent status of critical services and URLs, or to retrieve all logs within the selected time frame."
+            },
+            "serverName":{
+              "type": "string",
+              "description":", separated Server Names. For Instance, 'avaxxxxx, mosayyyyy, acuzzzzz'"
+            },
+            "start_time": {
+              "type": "string",
+              "description": "The start time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+            },
+            "end_time": {
+              "type": "string",
+              "description": "The end time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+            }    
+          }
+        },
+        
+        "incidentParams": {
+          "type": "object",
+          "properties": {
+            "filters": {
+              "type": "object",
+              "properties": {
+                  "appFamily": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Application Family's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure', 'Aria'] tells to consider only 2 application family's mentioned."
+                          }
+                  },
+                  "appCI": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Application CI's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure-WAMT', 'Aria-AK'] tells to consider only 2 application CI's mentioned."
+                          }
+                  },
+                  "managedByGroup": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Managed By Group .For Instance, ['All'] indicates all Managed By Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Managed By Group's mentioned."
+                          }
+                  },
+                  "supportGroup": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Support Group .For Instance, ['All'] indicates all Support Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Support Group's mentioned."
+                          }
+                  }      
+              }
+            },
+            "aggregate":{
+              "type": "string",
+              "description":"A boolean value(yes/no) that determines whether to fetch only count of Incidents categorized based on incident status, or to retrieve all logs within the selected time frame."
+            },
+            "miBool":{
+              "type": "string",
+              "description":"A boolean values(yes/no) which decides if the incident data required are MI or all Incidents"
+            },
+            "active":{
+              "type": "string",
+              "description":"A boolean values(yes/no) which decides if the incident data required are currently active or all Incidents irrespective of incident status within the selected time frame."
+            },
+            "start_time": {
+              "type": "string",
+              "description": "The start time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+            },
+            "end_time": {
+              "type": "string",
+              "description": "The end time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+            }    
+          }
+        },
+        "interfaceParams": {
+          "type": "object",
+          "properties": {
+            "filters": {
+              "type": "object",
+              "properties": {
+                  "appFamily": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Application Family's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure', 'Aria'] tells to consider only 2 application family's mentioned."
+                          }
+                  },
+                  "appCI": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Application CI's .For Instance, ['All'] indicates all Application Family to be considered, ['Avasure-WAMT', 'Aria-AK'] tells to consider only 2 application CI's mentioned."
+                          }
+                  },
+                  "managedByGroup": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Managed By Group .For Instance, ['All'] indicates all Managed By Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Managed By Group's mentioned."
+                          }
+                  },
+                  "supportGroup": {
+                      "type": "array",
+                      "items":{
+                          "type":"string",
+                          "description": "Array of Support Group .For Instance, ['All'] indicates all Support Group to be considered, ['IS Oncology', 'IS Cardiology'] tells to consider only 2 Support Group's mentioned."
+                          }
+                  }      
+              }
+            },
+            "aggregate":{
+              "type": "string",
+              "description":"A boolean value(yes/no) that determines whether to fetch only recent Interface logs, or to retrieve all logs within the selected time frame."
+            },
+            "start_time": {
+              "type": "string",
+              "description": "The start time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+            },
+            "end_time": {
+              "type": "string",
+              "description": "The end time in the Duration we want data. Example datetime format: 'yyyy-mm-dd HH:MM:SS'"
+            }    
+          }
+        },
+        "error":{
+            "type": "object",
+            "properties":{
+                "Functionality":{
+                    "type": "String"
+                },
+                "Message":{
+                    "type": "string"
+                }
+            }
+        },
+        "logs":{
+          "type":"object"
+        }
+        
+    },
+    "tags": [
+    {
+      "name": "Infrastructure",
+      "description": "APIs related to Infrastructure Telemetry"
+    },
+    {
+      "name": "Application",
+      "description": "APIs related to Application Telemetry"
+    },
+    {
+      "name": "Access Validation",
+      "description": "APIs related to Access Validation"
+    }
+  ]
+}
+

@@ -1,0 +1,9 @@
+[
+  { "id": "AK", "val": "02", "stateName":"Alaska" },
+  { "id": "CA", "val": "06", "stateName":"California"},
+  { "id": "MT", "val": "30", "stateName":"Montana" },
+  { "id": "NM", "val": "35", "stateName":"New Mexico" },
+  { "id": "OR", "val": "41", "stateName":"Oregon" },
+  { "id": "TX", "val": "48", "stateName":"Texas" },
+  { "id": "WA", "val": "53", "stateName": "Washington"}
+]

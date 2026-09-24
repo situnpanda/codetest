@@ -1,0 +1,23 @@
+@font-face {
+    font-family: 'BarlowSemiBold';
+    src: local('BarlowSemiBold'), url('../../Fonts/Barlow-SemiBold.ttf') format('truetype');
+    /* src: local('BarlowSemiBold'), url('./Barlow-SemiBold.ttf') format('truetype'); */
+  }
+
+  @font-face {
+    font-family: 'BarlowMedium';
+    src: local('BarlowMedium'), url('../../Fonts/Barlow-Medium.ttf') format('truetype');
+    /* src: local('BarlowMedium'), url('./Barlow-Medium.ttf') format('truetype'); */
+}
+
+@font-face {
+    font-family: 'BarlowBold';
+    src: local('BarlowBold'), url('../../Fonts/Barlow-Bold.ttf') format('truetype');
+    /* src: local('BarlowBold'), url('./Barlow-Bold.ttf') format('truetype'); */
+}
+
+@font-face {
+    font-family: 'BarlowRegular';
+    src: local('BarlowRegular'), url('../../Fonts/Barlow-Regular.ttf') format('truetype');
+    /* src: local('BarlowRegular'), url('./Barlow-Regular.ttf') format('truetype'); */
+}
