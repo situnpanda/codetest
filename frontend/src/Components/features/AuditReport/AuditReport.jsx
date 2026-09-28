@@ -2146,7 +2146,7 @@ function UserMetricsTabContent({ userMetricsData, loading }) {
       const host = parsed.hostname.toLowerCase();
       const pathParts = parsed.pathname.split('/').filter(Boolean);
 
-      if (host.includes('itelemetry.providence.org')) {
+      if (host === 'itelemetry.providence.org' || host.endsWith('.itelemetry.providence.org')) {
         pageName = pathParts[0] || '-';
       } else {
         pageName = pathParts[0] || raw;

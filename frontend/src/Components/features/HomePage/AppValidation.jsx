@@ -190,7 +190,7 @@ function ValidationDrilldown({date,globalFilterChoice, globalFilterData, appInsi
                     "Name":nameOfResource,
                     "Type":typeOfResource
                 })
-                console.log(nameOfResource, typeOfResource)
+                console.log("Resource:", nameOfResource, typeOfResource)
                 var serverName=""
                 var hostingType = []
 
@@ -213,7 +213,7 @@ function ValidationDrilldown({date,globalFilterChoice, globalFilterData, appInsi
             }
             else{
                 var hostingType = urlParams.get("HostingType").toString()
-                console.log(nameOfResource, typeOfResource, hostingType)
+                console.log("Resource:", nameOfResource, typeOfResource, hostingType)
                 setQueryParams({
                     "Name":nameOfResource,
                     "Type":typeOfResource,
@@ -255,7 +255,7 @@ function ValidationDrilldown({date,globalFilterChoice, globalFilterData, appInsi
 
     useEffect(()=>{
         var nameOfResource = urlParams.get("Name").toString()
-        console.log(nameOfResource, "In Global Filter Choice",globalFilterChoice, Object.keys(queryParams).length)
+        console.log("Resource:", nameOfResource, "In Global Filter Choice",globalFilterChoice, Object.keys(queryParams).length)
         if(Object.keys(queryParams).length && "ResourceName" in globalFilterChoice && nameOfResource.toLowerCase()!=globalFilterChoice["ResourceName"].toLowerCase()){
             console.log("In Global Filter Choice Filter")
             getRegionWiseData_GlobalFilter()

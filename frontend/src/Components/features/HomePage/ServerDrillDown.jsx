@@ -557,14 +557,14 @@ function ServerDrillDown({date,globalFilterChoice, globalFilterData, appInsights
             console.log(location.pathname+location.search)
             var nameOfResource = urlParams.get("Name")?.toString() || ""
             var typeOfResource = urlParams.get("Type")?.toString() || ""
-            console.log(nameOfResource, typeOfResource)
+            console.log("Resource:", nameOfResource, typeOfResource)
                 console.log("Blade View", appNameFromBlade)
                 setQueryParams({
                     "Name":appNameFromBlade,
                     "Type":"Application CI"
                 })
 
-                console.log(nameOfResource, typeOfResource)
+                console.log("Resource:", nameOfResource, typeOfResource)
                 var serverName=""
                 var hostingType = []
 
@@ -816,7 +816,7 @@ function ServerDrillDown({date,globalFilterChoice, globalFilterData, appInsights
 
     useEffect(()=>{
         var nameOfResource = urlParams.get("Name").toString()
-        console.log(nameOfResource, "In Global Filter Choice",globalFilterChoice, Object.keys(queryParams).length)
+        console.log("Resource:", nameOfResource, "In Global Filter Choice",globalFilterChoice, Object.keys(queryParams).length)
         if(Object.keys(queryParams).length && globalFilterChoice && "ResourceName" in globalFilterChoice && nameOfResource.toLowerCase()!=globalFilterChoice["ResourceName"].toLowerCase()){
             console.log("In Global Filter Choice Filter")
             getRegionWiseData_GlobalFilter()

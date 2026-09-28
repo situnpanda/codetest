@@ -1,7 +1,7 @@
 import pandas as pd
 from shared.dataBase import insert_data,exceptioninfo
 from datetime import datetime
-from azure.identity import AzureCliCredential, ManagedIdentityCredential
+from azure.identity import AzureCliCredential, ManagedIdentityCredential,DefaultAzureCredential
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder, DataFormat
 from azure.kusto.ingest import IngestionProperties, IngestionMappingKind, KustoStreamingIngestClient, QueuedIngestClient
 from azure.kusto.data.helpers import dataframe_from_result_table
@@ -13,7 +13,8 @@ def connectToADX(cluster):
     while count<3:
         try:
             # Connect to Az Account
-            credential = AzureCliCredential()
+            # credential = AzureCliCredential()
+            credential = DefaultAzureCredential()
             #credential = ManagedIdentityCredential(client_id='015ad614-f9a5-4333-83b4-b71c01c393d8')
             # Connect to ADX
             kcsb = KustoConnectionStringBuilder.with_azure_token_credential(cluster, credential)

@@ -1,38 +1,4 @@
-(venv) PS C:\iTelemetry6\itelemetry-v3> git push -u origin main                                     
-Enumerating objects: 382, done.
-Counting objects: 100% (382/382), done.
-Delta compression using up to 12 threads
-Compressing objects: 100% (344/344), done.
-Writing objects: 100% (382/382), 15.28 MiB | 1.72 MiB/s, done.
-Total 382 (delta 35), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas: 100% (35/35), done.
-remote: error: GH013: Repository rule violations found for refs/heads/main.
-remote: 
-remote: - GITHUB PUSH PROTECTION
-remote:   —————————————————————————————————————————
-remote:     Resolve the following violations before pushing again
-remote: 
-remote:     - Push cannot contain secrets
-remote: 
-remote:     
-remote:      (?) Learn how to resolve a blocked push
-remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push
-remote:     
-remote:     
-remote:       —— Azure OpenAI Key ——————————————————————————————————
-remote:        locations:
-remote:          - commit: cd38ddde5a833e5660113662e681f4cd23ac6826
-remote:            path: jobs/MI_Data.py:62
-remote:     
-remote:        (?) To push, remove secret from commit(s) or follow this URL to request an exemption.
-remote:        https://github.com/PSJH/iTelemetry/secret_scanning/exemptions/new/c2VjcmV0X3NjYW5uaW5nLTQyMTIxNjMxNzYtM0ptTTA4SDJMVHFPc2ZVOWZLS1E1dlJMWm1o
-remote:     
-remote: 
-remote: 
-To https://github.com/PSJH/iTelemetry.git
- ! [remote rejected] main -> main (push declined due to repository rule violations)
-error: failed to push some refs to 'https://github.com/PSJH/iTelemetry.git'
-(venv) PS C:\iTelemetry6\itelemetry-v3> # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # iTelemetry v3 — files that must NOT be committed
 # ---------------------------------------------------------------------------
 
