@@ -1,4 +1,4 @@
-from shared.dataBase import queryDw, insert_data, exceptioninfo, connectToDw, connectToDw_SqlServerPwd, connectToDw_AADpwd
+from shared.dataBase import queryDw, insert_data, exceptioninfo, connectToDw, connectToDw_SqlServerPwd, connectToDw_AADpwd, openConnection
 from shared.LogAnalytics import queryInLogAnalytics
 from shared.keyVault import connectToKeyVault
 from shared.variables import globalVariables
@@ -486,7 +486,7 @@ def interfacesLogsData(connectionString, apmNumbers, startTime, endTime, aggrega
     
     if interfaceDetailsList:
         # Extract column names from the cursor description
-        with pyodbc.connect(connectionString) as conn:
+        with openConnection(connectionString) as conn:
             column_names = [column[0] for column in conn.cursor().execute(interfacedataquery).description]
         
         # Create a DataFrame

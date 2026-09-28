@@ -9,8 +9,9 @@ import numpy
 from collections import defaultdict
 from flask import Flask, request, Blueprint
 from flask_swagger_ui import get_swaggerui_blueprint
+from markupsafe import escape
 from shared.keyVault import connectToKeyVault
-from shared.dataBase import connectToDw, connectToDw_AADpwd, connectToDw_SqlServerPwd,queryDw, connectToDw_AADpwd_Write, insert_data
+from shared.dataBase import connectToDw, connectToDw_AADpwd, connectToDw_SqlServerPwd,queryDw, connectToDw_AADpwd_Write, insert_data, openConnection
 from domains.metrics.application.applicationTelemetry import cacheIncidentData, servicesData, interfacesData, incidentData, kpiData, changeRequest, getIncidentObservation, interfacesLogsData
 from domains.metrics.application.mapViewTelemetry import mapView
 from shared.hospitalList import hospitalList, hospitalListCount
@@ -104,6 +105,8 @@ from apis.summary import summary_bp
 app.register_blueprint(summary_bp)
 from apis.application import application_bp
 app.register_blueprint(application_bp)
+from apis.infrastructure import infrastructure_bp
+app.register_blueprint(infrastructure_bp)
 
 # File s with Cached Data
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Current file's directory
@@ -544,11 +547,11 @@ def setCustomThreshold():
     modifieddate = data.get('modifieddate')
     print(data)
     connectionString = connectToDw_AADpwd_Write("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
-    query = f"""insert into customthreshold values ('{appci}','{type}','{threshold}','{changedby}','{comments}','{modifieddate}')"""
+    query = "insert into customthreshold values (?, ?, ?, ?, ?, ?)"
     try:
-        with pyodbc.connect(connectionString) as conn:
+        with openConnection(connectionString) as conn:
             with conn.cursor() as cursor:
-                cursor.execute(query)
+                cursor.execute(query, (appci, type, threshold, changedby, comments, modifieddate))
                 conn.commit()
                 print("Inserted Custom Threshold successfully") 
         # caching_AlertsInfraList()
@@ -609,14 +612,14 @@ def azureTagCompliance():
                         AND BusinessApp.active = 'true'
                         AND AppRelation.Relationship = 'Runs on'
                         AND cmdbci.operational_status_label in ('Operational', 'Repair in Progress', 'VM Terminated', 'Sleep Test in Progress')
-                        AND BusinessApp.[name] IN ('{filters["appCI"]}')
+                        AND BusinessApp.[name] IN (?)
                     """
         
         #connect to DB
         connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
         
         #query
-        result = queryDw(connectToServicePerf, sqlQuery)
+        result = queryDw(connectToServicePerf, sqlQuery, (filters["appCI"],))
         s=""
         for i in result:
             s+="'"+i[0]+"',"
@@ -642,7 +645,7 @@ def AcknowledgeAlert():
     # return "Acknowledged"
     try:
         updateRecord(str(id))
-        return f"The alert has been successfully acknowledged. The team will no longer receive alerts for resource {str(resourceId)} concerning the {metricType} metric in the next half an hour."
+        return f"The alert has been successfully acknowledged. The team will no longer receive alerts for resource {escape(str(resourceId))} concerning the {escape(str(metricType))} metric in the next half an hour."
     except Exception as ex:
         print(ex)
         # Call the function to insert exception
@@ -771,7 +774,7 @@ def get_early_warning_state_updates():
             ORDER BY [Time Generated] DESC
         """
 
-        with pyodbc.connect(connectionString) as conn:
+        with openConnection(connectionString) as conn:
             with conn.cursor() as cursor:
                 cursor.execute(sqlQuery)
                 result = cursor.fetchall()

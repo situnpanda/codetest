@@ -256,11 +256,7 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
       var typeOfResource = urlParams.get("Type")?.toString() || ""
 
       if(Object.keys(hospitalInformation).length>0 && "hospitalList" in hospitalInformation && Object.keys(globalFilterData).length>0 && Object.keys(globalApplicationList).length>0){
-        console.log(nameOfResource, typeOfResource, hospitalInformation)
-        // setQueryParams({
-        //   "Name":nameOfResource,
-        //   "Type":typeOfResource
-        // })
+        console.log("Resource:", nameOfResource, typeOfResource, hospitalInformation)
         if(nameOfResource=="All" && typeOfResource=="All"){
           console.log("hello in if in useeffect")
           getRegionWiseData_GlobalFilter("All applications")
@@ -403,12 +399,10 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
 
       var url = new URL( baseUrl + 'applicationHealthSummary');
       url.search = new URLSearchParams(params).toString();
-      // console.log(url)
       fetch(url,{
         method:'GET',
         headers: {
           'Content-Type': 'application/json',
-          // "Authorization": `Bearer ${backendSessionToken}`
         },
       })
       .then((response)=>response.json())
@@ -455,7 +449,6 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
         if(!(appCI.toLowerCase() in resourceWiseAvailability)){
           var hospital = []
           var serverDetails = {}
-          //console.log(hospitalInformation["hospitalList"]["AppCI"])
           var index = Object.keys(hospitalInformation["hospitalList"]["AppCI"]).filter((key)=>hospitalInformation["hospitalList"]["AppCI"][key].toLowerCase()==appCI.toLowerCase())
           index.map((ind)=>{
             var s = hospitalInformation["hospitalList"]["State"][ind]
@@ -470,18 +463,6 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
         }
       }
 
-      // const getAppCI = (appFamily) => {
-      //     var appCI = []
-      //     console.log("AppFamily", appFamily)
-      //     console.log(applicationListGlobal)
-      //     Object.keys(serverList["AppFamily"]).map((key)=>{
-      //       if(serverList["AppFamily"][key].toLowerCase()==appFamily.toLowerCase()){
-      //           appCI.push(serverList["AppCI"][key])
-      //       }
-      //     })
-      //     console.log(appCI)
-      //     return appCI
-      // }
       const getAppCI = (appFamily) => {
           var appCI = []
           console.log("AppFamily", appFamily)
@@ -563,7 +544,6 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
       var [supportGroupToAppFam, setSupportGroupToAppFam] = useState({})
       var [appFamToAppCi, setAppFamToAppCi] = useState({})
       var [validAppCIs, setValidAppCIs] = useState([])
-      // var [cardData, setCardData] = useState({})
 
       var [applicationPotentialIssues, setApplicationPotentialIssues] = useState([])
       var [affectedCount , setAffectedCount] = useState(0)
@@ -816,7 +796,6 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
             if(Object.keys(data).length>0 && "Status" in data && data["Status"][0]==="New"){
               Object.keys(data["Application Family"]).map((key)=>{
                 temp["popUpHeader"] = "Early Warning Detected"
-                // temp["popUpBody"] = `${data["Summary"][key]["Summary"]} The Yellow Warning Tags will show where the warning is found. Please Acknowledge to track troubleshooting efforts`
                 
                 // Build HTML popUpBody
                 const summary = data["Summary"][key]["Summary"] || "";
@@ -954,7 +933,6 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
             }
             console.log(temp)
             setEarlyWarningPopUpData(temp)
-            // console.log("Warning Events Data:", data)
           })
           .catch((error)=>{
             console.error("Error fetching warning events data:", error)
@@ -1139,13 +1117,13 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
 
       useEffect(()=>{
           // tempPageState.current.potentialIssueToggle = toggleState;
-          console.log(toggleState, filters, allApplicationList,applicationPotentialIssues)
+          console.log("state:", toggleState, filters, allApplicationList,applicationPotentialIssues)
           if(!toggleState && Object.keys(filters).length>0){
-            console.log(toggleState, filters, allApplicationList)
+            console.log("state:", toggleState, filters, allApplicationList)
             setApplicationList(allApplicationList)
           }
           else if(toggleState && applicationPotentialIssues.length>0){
-            console.log(toggleState, filters, applicationPotentialIssues)
+            console.log("state:", toggleState, filters, applicationPotentialIssues)
             setApplicationList(applicationPotentialIssues)
           }
           else if(toggleState && Object.keys(filters).length>0 && applicationPotentialIssues.length===0){

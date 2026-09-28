@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import requests
 from flask import Blueprint, request
+from markupsafe import escape
 
 from shared.keyVault import connectToKeyVault
 from shared.dataBase import insert_data, exceptioninfo
@@ -334,7 +335,7 @@ def getConnectionData():
     try:
         params, error = _parse_window()
         if error:
-            return {"Data": error, "status": 400}
+            return {"Data": str(escape(error)), "status": 400}
 
         cfg = DIRECTION_CONFIG[params["direction"]]
         filter_field = cfg["filter_field"]
@@ -360,7 +361,7 @@ def getConnectionData():
                 start_ms=params["startMs"],
                 end_ms=params["endMs"],
             )
-            result["serverName"] = server_name
+            result["serverName"] = str(escape(server_name))
             servers_out.append(result)
 
         return {

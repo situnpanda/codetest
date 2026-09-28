@@ -23,6 +23,7 @@ from shared.dataBase import (
     connectToDw_AADpwd_Write,
     connectToDw_SqlServerPwd,
     queryDw,
+    openConnection,
 )
 from domains.metrics.application.applicationTelemetry import interfacesLogsData
 from domains.metrics.infrastructure.infrastructureTelemetry import (
@@ -276,7 +277,7 @@ def logServiceRequests():
     connectionString = connectToDw_AADpwd_Write("sqldb-azure-prod-012.database.windows.net","crcamonitoring","servCRCAMonitoring@providence.org")
     print("The connection string is ", connectionString)
     
-    conn = pyodbc.connect(connectionString)
+    conn = openConnection(connectionString)
 
     try:
         
@@ -707,7 +708,7 @@ def submit_maintenance():
     )
  
     try:
-        conn = pyodbc.connect(connectionString)
+        conn = openConnection(connectionString)
         cursor = conn.cursor()
  
         # Call Stored Procedure

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import HelpIcon from "@mui/icons-material/Help";
-import SmsFailedIcon from "@mui/icons-material/SmsFailed";
+import FeedbackIcon from "@mui/icons-material/Feedback";
 import CloseIcon from "@mui/icons-material/Close";
 import {
   Dialog,
@@ -147,7 +147,7 @@ export default function ItelemetryFeedback({ userProfileData }) {
       {/* Feedback Icon */}
       <Tooltip title="Click here to report an issue and provide feedback" arrow>
         <IconButton onClick={handleFeedbackOpen} aria-label="feedback">
-          <SmsFailedIcon />
+          <FeedbackIcon />
         </IconButton>
       </Tooltip>
 
