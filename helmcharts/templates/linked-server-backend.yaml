@@ -1,0 +1,11 @@
+apiVersion: policy.linkerd.io/v1beta3
+kind: Server
+metadata:
+  name: {{ .Values.appName }}-backend
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: itelemetry-backend
+  port: {{ .Values.backend.service.targetPort }}
+  proxyProtocol: HTTP/2

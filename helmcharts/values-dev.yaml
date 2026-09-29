@@ -1,0 +1,104 @@
+# JFrog Aritifactory configuration
+namespace: itelemetry
+appName: itelemetry
+registry:
+  server: artifactory.wu2.cloud.providence.org
+  username: sp-itelemetryplatformengineering-publisher
+  password: 
+
+azure:
+  clientId: "015ad614-f9a5-4333-83b4-b71c01c393d8"
+  tenantId: "2e319086-9a26-46a3-865f-615bed576786"
+  serviceAccountName: "itelemetry-aks-sa"
+
+# Backend service configuration
+backend:
+  enabled: true
+  replicas: 1
+  image:
+    repository: artifactory.wu2.cloud.providence.org/docker-itelemetryplatformengineering/itelemetry-backend
+    tag: test1
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+
+  env:
+    FLASK_APP: main.py
+    FLASK_ENV: dev
+    FLASK_RUN_HOST: 0.0.0.0
+    FLASK_RUN_PORT: "5000"
+    DEPLOYMENT_ENV: development
+
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+
+# Frontend service configuration
+frontend:
+  enabled: true
+  replicas: 1
+  image:
+    repository: artifactory.wu2.cloud.providence.org/docker-itelemetryplatformengineering/itelemetry-frontend
+    tag: test1
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+
+  env:
+    REACT_APP_BACKEND_URL: https://itelemetry.devwu2.cloud.providence.org/api
+    NODE_ENV: kube
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "125m"
+    limits:
+      memory: "512Mi"
+      cpu: "250m"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  host: itelemetry.devwu2.cloud.providence.org
+  annotations:
+
+    cert-manager.io/cluster-issuer: letsencrypt-prod-azure
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    kubernetes.io/ingress.allow-http: "false"
+    #nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.org/proxy-buffer-size: 128k
+    nginx.org/proxy-buffers: 4 128k
+    nginx.org/proxy-connect-timeout: '3600'
+    nginx.org/proxy-max-temp-file-size: 1024m
+    nginx.org/proxy-read-timeout: '3600'
+    nginx.org/proxy-send-timeout: '3600'
+    nginx.ingress.kubernetes.io/connection-proxy-header: "keep-alive"
+    nginx.ingress.kubernetes.io/proxy-body-size: 8m
+
+  tls:
+    enabled: true
+    secretName: itelemetry-dev-tls-secret
+
+secretProviderClass:
+  enabled: false
+  
+# Security context for containers
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  runAsNonRoot: true

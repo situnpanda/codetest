@@ -1,0 +1,95 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itelemetry-backend
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: itelemetry-backend
+    component: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app: itelemetry-backend
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: itelemetry-backend
+        component: backend
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: {{ .Values.azure.serviceAccountName | default "workload-identity-sa" }}
+      #imagePullSecrets:
+        #- name: jfrog-secret
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+      - name: backend
+        image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
+        imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.backend.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: AZURE_CLIENT_ID
+          value: {{ .Values.azure.clientId | quote }}
+        - name: AZURE_TENANT_ID
+          value: {{ .Values.azure.tenantId | quote }}
+        - name: AZURE_FEDERATED_TOKEN_FILE
+          value: "/var/run/secrets/azure/tokens/azure-identity-token"
+        - name: AZURE_AUTHORITY_HOST
+          value: "https://login.microsoftonline.com/"
+
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: FLASK_APP
+          value: {{ .Values.backend.env.FLASK_APP | quote }}
+        - name: FLASK_ENV
+          value: {{ .Values.backend.env.FLASK_ENV | quote }}
+        - name: FLASK_RUN_HOST
+          value: {{ .Values.backend.env.FLASK_RUN_HOST | quote }}
+        - name: FLASK_RUN_PORT
+          value: {{ .Values.backend.env.FLASK_RUN_PORT | quote }}
+        - name: DEPLOYMENT_ENV
+          value: {{ .Values.backend.env.DEPLOYMENT_ENV | quote }}
+        resources:
+          {{- toYaml .Values.backend.resources | nindent 10 }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: azure-identity-token
+          mountPath: /var/run/secrets/azure/tokens
+          readOnly: true
+        {{- if .Values.secretProviderClass.enabled }}
+        - name: secrets-store-inline
+          mountPath: /mnt/secrets-store
+          readOnly: true
+        {{- end }}
+
+      volumes:
+      - name: azure-identity-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: azure-identity-token
+              expirationSeconds: 3600
+              audience: api://AzureADTokenExchange
+      {{- if .Values.secretProviderClass.enabled }}
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: {{ .Values.secretProviderClass.name }}
+      {{- end }}
+{{- end }}

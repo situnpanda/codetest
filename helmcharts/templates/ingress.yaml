@@ -1,0 +1,51 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: itelemetry-ingress
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: itelemetry
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: ingress
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | default "nginx" }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - {{ .Values.ingress.host }}
+    secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+  - host: {{ .Values.ingress.host }}
+    http:
+      paths:
+      # Backend API routes
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: itelemetry-backend-service
+            port:
+              number: {{ .Values.backend.service.port }}
+      # Swagger / API docs
+      - path: /swagger.json
+        pathType: Prefix
+        backend:
+          service:
+            name: itelemetry-backend-service
+            port:
+              number: {{ .Values.backend.service.port }}
+      # Frontend routes (catch-all - must be last)
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: itelemetry-frontend-service
+            port:
+              number: {{ .Values.frontend.service.port }}
+{{- end }}

@@ -1,0 +1,47 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itelemetry-frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: itelemetry-frontend
+    component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app: itelemetry-frontend
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: itelemetry-frontend
+        component: frontend
+    spec:
+      #serviceAccountName: {{ .Values.azure.serviceAccountName | default "workload-identity-sa" }}
+      #imagePullSecrets:
+        #- name: jfrog-secret
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8}}
+      containers:
+      - name: frontend
+        image: {{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.frontend.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: REACT_APP_BACKEND_URL
+          value: {{ .Values.frontend.env.REACT_APP_BACKEND_URL | quote }}
+        - name: NODE_ENV
+          value: {{ .Values.frontend.env.NODE_ENV | quote }}
+        resources:
+          {{- toYaml .Values.frontend.resources | nindent 10 }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+{{- end }}
