@@ -52,7 +52,7 @@ frontend:
   service:
     type: ClusterIP
     port: 80
-    targetPort: 80
+    targetPort: 8080
 
   env:
     REACT_APP_BACKEND_URL: https://itelemetry.devwu2.cloud.providence.org/api
