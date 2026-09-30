@@ -92,7 +92,7 @@ def get_change_incident_events():
                     "status": row["Status"]
                 })
             print("the events are ", events)
-            return jsonify({"events": events}), 200
+            return {"status": 200, "Data": events, "meta": {}, "error": None}, 200
 
         # Change Request / Major Incident path
         objectName = "Change Request" if eventType == "Change" else "Major Incident"
@@ -154,7 +154,7 @@ def get_change_incident_events():
                 "additionalInformation": row["AdditionalInformation"]
             })
         print("the major incident events are ", events)
-        return jsonify({"events": events}), 200
+        return {"status": 200, "Data": events, "meta": {}, "error": None}, 200
 
     except Exception as ex:
         # Existing error handling

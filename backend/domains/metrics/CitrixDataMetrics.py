@@ -54,10 +54,10 @@ def getCitrixPerf(data={}):
         timeTakenByKqlQuery = (datetime.now() - st).total_seconds()
 
         return {
-            "Data": df_res.to_json(orient="records"),
             "status": 200,
-            "Time Taken by Kql ADX": timeTakenByKqlQuery,
-            "Record Count": len(df_res),
+            "Data": df_res.to_json(orient="records"),
+            "meta": {"Time Taken by Kql ADX": timeTakenByKqlQuery, "Record Count": len(df_res)},
+            "error": None,
         }
 
     except Exception as ex:

@@ -31,7 +31,7 @@ tests/
 ## Running
 
 ```powershell
-# from itelemetry-v3/
+# from itelemetry/
 c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini
 
 # unit only (skip Azure/network)

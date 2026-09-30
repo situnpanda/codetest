@@ -137,17 +137,18 @@ function AppMonitoringDashboard({date, appInsights}) {
       }
   
       const data = await response.json();
+      const payload = data.Data;
   
-      if (!data || Object.keys(data).length === 0) {
+      if (!payload || Object.keys(payload).length === 0) {
         setNoData(true);
         setDetailedData([]);
       } else {
         if (aggregate === "yes") {
-          setImpactedUsers(data.ImpactedUsersCount || "NA");
-          setTotalExceptions(data.TotalExceptions || "NA");
-          setDistinctTypeCount(data.DistinctTypeCount || "NA");
+          setImpactedUsers(payload.ImpactedUsersCount || "NA");
+          setTotalExceptions(payload.TotalExceptions || "NA");
+          setDistinctTypeCount(payload.DistinctTypeCount || "NA");
         } else {
-          setDetailedData(data || []);
+          setDetailedData(payload || []);
           //console.log(data)
         }
       }
@@ -179,12 +180,13 @@ function AppMonitoringDashboard({date, appInsights}) {
       }
 
       const data = await response.json();
+      const payload = data.Data;
       //(data)
 
-      if (Object.keys(data).length === 0 || !data) {
+      if (Object.keys(payload).length === 0 || !payload) {
         setNoData(true);
       } else {
-        const formattedData = data.map(item => ({
+        const formattedData = payload.map(item => ({
           time: item.TimeGenerated, 
           reliability: item.Reliability ,
           total: item.Total,

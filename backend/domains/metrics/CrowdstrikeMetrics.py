@@ -326,7 +326,7 @@ def _handle_exception(ex):
         info = exceptioninfo(ex)
     info["PageName"] = PAGE_NAME
     insert_data(info)
-    return {"Data": info, "status": 501}
+    return {"status": 501, "Data": info, "meta": {}, "error": None}
 
 
 @crowdstrikeMetrics.route("/getConnectionData", methods=["POST"])
@@ -335,7 +335,7 @@ def getConnectionData():
     try:
         params, error = _parse_window()
         if error:
-            return {"Data": str(escape(error)), "status": 400}
+            return {"status": 400, "Data": str(escape(error)), "meta": {}, "error": None}
 
         cfg = DIRECTION_CONFIG[params["direction"]]
         filter_field = cfg["filter_field"]
@@ -365,13 +365,15 @@ def getConnectionData():
             servers_out.append(result)
 
         return {
+            "status": 200,
             "Data": {
                 "bucket": params["bucket"],
                 "direction": params["direction"],
                 "ipType": cfg["ip_type"],
                 "servers": servers_out,
             },
-            "status": 200,
+            "meta": {},
+            "error": None,
         }
 
     except Exception as ex:

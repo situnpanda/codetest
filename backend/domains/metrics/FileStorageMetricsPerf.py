@@ -130,7 +130,7 @@ def getFileStoragePerf():
             en2 = datetime.now()
             timeTakenByKqlQuery_toReadFileshareData = (en2-st2).total_seconds()
 
-        return {"Data":df_res.to_json(),"status":200, "Time Taken by Sql DB":timeTakenBySqlQuery_toReadFileStorageList,"Time Taken by Kql ADX":timeTakenByKqlQuery_toReadFileshareData}
+        return {"status": 200, "Data": df_res.to_json(), "meta": {"Time Taken by Sql DB": timeTakenBySqlQuery_toReadFileStorageList, "Time Taken by Kql ADX": timeTakenByKqlQuery_toReadFileshareData}, "error": None}
     except Exception as ex:
         # Existing error handling
         if ex.args and ex.args[0] is not None and isinstance(ex.args[0], dict):

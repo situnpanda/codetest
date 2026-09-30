@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from datetime import datetime
 import pytz
 from shared.dataBase import connectToDw_AADpwd_Write, insertDw, exceptioninfo,insert_data
+from shared.appinsights_logger import error_response
 
 activity_logging_bp = Blueprint("activityLogging", __name__, url_prefix="/api/logging")
 
@@ -26,10 +27,10 @@ def log_user_activity(data={}):
         row = (timeGenerated, data.get("emailID"), data.get("featureName"), data.get("data"), data.get("exception") )
         res = insertDw(connectionString_write, sqlQuery,[row])
         print(res)
-        return jsonify({"status": 200, "Message": "User activity logged successfully."})
+        return {"status": 200, "Data": "User activity logged successfully.", "meta": {}, "error": None}
     except Exception as ex:
         print("Exception in logging user activity:")
         print(ex)
         info = exceptioninfo(ex)
         insert_data(info)
-        return jsonify({"status": 501, "Message": str(ex)})
+        return error_response(501, "Failed to log user activity", detail=info, exc=ex)

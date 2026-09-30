@@ -1,28 +1,13 @@
 # import azure.functions as func
 import logging
 import json
-from azure.identity import DefaultAzureCredential, AzureCliCredential, ManagedIdentityCredential
 from datetime import datetime, timedelta
 import pytz
 
+from shared.keyVault import connectToKeyVault
+from shared.dataBase import connectToDw_AADpwd
+
 # app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
-
-def connectToKeyVault(name):
-    kvUri = "https://akv-monitoring-01.vault.azure.net/"
-    # credential = AzureCliCredential()
-    #credential = DefaultAzureCredential()
-    credential = ManagedIdentityCredential(client_id='015ad614-f9a5-4333-83b4-b71c01c393d8')
-    client = SecretClient(vault_url=kvUri, credential=credential)
-    retrieved_secret = client.get_secret(name)
-    return retrieved_secret.value
-
-def connectToDw_AADpwd(serverName, dbName, userName):
-    # print(userName)
-    pwd = connectToKeyVault("servCRCAMonitoring-AAD-iTelemetry")
-    driver= '{ODBC Driver 17 for SQL Server}'
-    connectionString = "Driver="+driver+";UID="+userName+";PWD="+pwd+"; Authentication=ActiveDirectoryPassword;Server="+serverName+";Database="+dbName+";applicationintent=readonly"
-    #print(connectionString)
-    return connectionString
 
 def AlertRuleFilterBasedOnCustomThreshold():
     logging.info('Python HTTP trigger function processed a request.')

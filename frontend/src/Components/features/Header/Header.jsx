@@ -270,7 +270,7 @@ function Header(  {date, setDate, globalFilterData, setGlobalFilterChoice,global
       if (response.ok) {
         const data = await response.json();
         console.log("the support groups data is ", data)
-        setSupportGroupList(data); 
+        setSupportGroupList(data.Data); 
       } else {
         console.error('Failed to fetch support groups for user preference');
       }
@@ -490,7 +490,7 @@ function Header(  {date, setDate, globalFilterData, setGlobalFilterChoice,global
       .then((response) => response.json())
       .then((data) =>{ 
         console.log("Server List data is ready")
-        globalFilterUpdate(JSON.parse(data["ServerLogs"]))  
+        globalFilterUpdate(JSON.parse(data["Data"]))  
       })
       .catch((error) =>{ 
         // setLoading(prevLoading=>({
@@ -519,8 +519,8 @@ function Header(  {date, setDate, globalFilterData, setGlobalFilterChoice,global
     }})
     .then((response) => response.json())
     .then((data) =>{
-        console.log(JSON.parse(data["hospitalData"]))
-        setHospitalInformation({"hospitalList":JSON.parse(data["hospitalData"])})
+        console.log(JSON.parse(data["Data"]))
+        setHospitalInformation({"hospitalList":JSON.parse(data["Data"])})
     })
     .catch((error) => {
       console.error('Error:', error)

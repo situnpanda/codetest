@@ -34,7 +34,7 @@ function fetchApmApiEndpoint() {
       }
       return response.json();
     })
-    .then((data) => data.value)
+    .then((data) => data.Data)
     .catch((error) => {
       console.error("[NorthStar] Error fetching API endpoint:", error);
       return null;

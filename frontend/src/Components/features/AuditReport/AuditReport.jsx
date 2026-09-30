@@ -1939,7 +1939,7 @@ function UserMetricsTabContent({ userMetricsData, loading }) {
       try {
         const response = await fetch(baseUrl + 'getHistoricalDataForAllAppFamilies');
         const result = await response.json();
-        const data = result.tableData || [];
+        const data = result.Data.tableData || [];
         
         if (data && data.length > 0) {
           // Calculate summary metrics from raw data

@@ -3,6 +3,7 @@ import pandas
 import numpy
 from shared.variables import globalVariables
 from flask import jsonify
+from shared.appinsights_logger import error_response
 from shared.LogAnalytics import queryInLogAnalytics
 import os
 import json
@@ -83,12 +84,12 @@ def getApplicationMetaData(dataPost, dataReturnType):
             print(Ex)
             info =exceptioninfo(Ex,query)
             insert_data(info)    
-            return jsonify({'error':str(Ex)}),500
+            return error_response(500, "Failed to fetch filter metadata", detail=info, exc=Ex)
     except Exception as Ex:
         print("Exception in connecting to database: ",Ex )
         info =exceptioninfo(Ex)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to connect to database", detail=info, exc=Ex)
 
 def getServerList(dataPost):
     filterData = dict()
@@ -252,12 +253,12 @@ def filtersData(dataPost, dataReturnType):
             print(Ex)
             info =exceptioninfo(Ex,query)
             insert_data(info)    
-            return jsonify({'error':str(Ex)}),500
+            return error_response(500, "Failed to fetch server list", detail=info, exc=Ex)
     except Exception as Ex:
         print("Exception in connecting to database: ",Ex )
         info =exceptioninfo(Ex)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to connect to database", detail=info, exc=Ex)
 
 def filtersData_SubRg():
     workspaceId = "552b9630-b106-4fe7-a1fa-97d04a0010ef"
@@ -284,7 +285,7 @@ def filtersData_SubRg():
         print("Exception in executing query in filters_subrg: ",Ex )
         info =exceptioninfo(Ex,logAnalyticsQuery)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to fetch subscription/resource-group filters", detail=info, exc=Ex)
     
 def getFiltersFromCache(dataPost, type):
     print(applicationListJsonPath)

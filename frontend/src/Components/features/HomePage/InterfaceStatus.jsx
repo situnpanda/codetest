@@ -156,12 +156,12 @@ const InterfaceStatus = ({date,appInsights,preferredTZ,appName,appFamily,globalF
             const data = await response.json();
     
             // Check if data contains expected structure and has interface status
-            if (data && data["Interfaces"] && data["Interfaces"].length > 0) {
+            if (data && data["Data"] && data["Data"]["Interfaces"] && data["Data"]["Interfaces"].length > 0) {
                 // Update the state with fetched data
                 
-                setInterfaceStatusData((data["Interfaces"]));
-                console.log("dataaaaaaaaa interfaces: ",data["Interfaces"])
-                setInterfaceStatusDataCheck((data["Interfaces"]));
+                setInterfaceStatusData((data["Data"]["Interfaces"]));
+                console.log("dataaaaaaaaa interfaces: ",data["Data"]["Interfaces"])
+                setInterfaceStatusDataCheck((data["Data"]["Interfaces"]));
             } else {
                 //console.log("Came into the else condition")
                 setInterfaceStatusData({}); // Set to empty if no data
@@ -365,7 +365,7 @@ const InterfaceStatus = ({date,appInsights,preferredTZ,appName,appFamily,globalF
         loading: false,
         data: Array.isArray(result?.Data) ? result.Data : [],
         error: '',
-        exceptions: result?.Exceptions || {}
+        exceptions: result?.meta?.Exceptions || {}
       });
     } catch (error) {
       console.error('Error fetching interface validation report:', error);

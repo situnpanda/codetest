@@ -10,11 +10,12 @@ import time
 from datetime import datetime, timedelta
 import pytz
 import json
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
+# chromium: Selenium imports disabled (Chromium removed for CVE remediation).
+# from selenium import webdriver
+# from selenium.webdriver.common.by import By
+# from selenium.webdriver.common.keys import Keys
+# from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver.chrome.service import Service
 import re
 
 # Add the parent of 'parent_folder' to sys.path
@@ -28,6 +29,11 @@ from shared.appinsights_logger import log_performance, error_response
 
 interfacePerf = Blueprint("applicationTelemetry_interfaceStatus", __name__, url_prefix="/api/applicationMetrics")
 
+# chromium: The Selenium helper classes and worker_thread below drive Chromium to
+# scrape the Corepoint monitor UI. Chromium was removed from the image for CVE
+# remediation, so this browser-automation block is disabled (commented out) until a
+# patched browser is reintroduced. The block is kept verbatim for easy restoration.
+_CHROMIUM_DISABLED = '''
 class PerformActionOnElements:
     def __init__(self, element, value):
         self.element = element
@@ -193,10 +199,16 @@ def worker_thread(corepointMonitor, userName, serviceAccountPwd, app, interfaceS
             exceptionMessage[corepointMonitor] = {"driver" : str(ex)}
     finally:
         driver.quit()
-        
+'''
+# chromium: end of disabled Selenium/Chromium block.
+
 @interfacePerf.route("/onDemand/interfaceStatus", methods=["POST"])
 @log_performance()
 def fetchCorepointInterfaceStatus(app=[]):
+    # chromium: Corepoint interface scraping requires Selenium + Chromium, which were
+    # removed for CVE remediation. Endpoint disabled until a patched browser is restored.
+    return error_response(503, "Interface status validation is temporarily disabled (Chromium removed).")
+
     interfaceStatus  = []
     exceptionMessage = {}
     if(len(app)==0):
@@ -237,15 +249,16 @@ def fetchCorepointInterfaceStatus(app=[]):
     corepointMonitors = ["3","4","akprod","wmprod"]
     serviceAccountPwd = connectToKeyVault("serviceAccntPWD")
     userName = "PHSWA\\svc.isaccprovision"
-    
-    for corepointMonitor in corepointMonitors:
-        thread = threading.Thread(target=worker_thread, args=(corepointMonitor, userName, serviceAccountPwd, interfaceMetadata, interfaceStatus, exceptionMessage))
-        threadArray.append(thread)
-    
-    for thread in threadArray:
-        thread.start()
-    for thread in threadArray:
-        thread.join()
+
+    # chromium: worker_thread drives Chromium via Selenium and is disabled (see block above).
+    # for corepointMonitor in corepointMonitors:
+    #     thread = threading.Thread(target=worker_thread, args=(corepointMonitor, userName, serviceAccountPwd, interfaceMetadata, interfaceStatus, exceptionMessage))
+    #     threadArray.append(thread)
+    #
+    # for thread in threadArray:
+    #     thread.start()
+    # for thread in threadArray:
+    #     thread.join()
 
     # print(f"[onDemand/interfaceStatus] Total interface rows collected: {len(interfaceStatus)}")
     # print(f"[onDemand/interfaceStatus] Exception monitors: {list(exceptionMessage.keys())}")
@@ -258,4 +271,4 @@ def fetchCorepointInterfaceStatus(app=[]):
             "ExceptionMessage": json.dumps(exceptionMessage)
         }
         insert_data(info)
-    return {"Data": interfaceStatus, "Exceptions": exceptionMessage, "status":200}
+    return {"status": 200, "Data": interfaceStatus, "meta": {"Exceptions": exceptionMessage}, "error": None}

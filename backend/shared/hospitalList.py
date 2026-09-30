@@ -7,6 +7,7 @@ import pytz
 import pandas
 import numpy
 from flask import jsonify
+from shared.appinsights_logger import error_response
 def hospitalList(connectionString):
     # hospitalListQuery = """ Select State, Region, Hospital, [Site Code], Address from HospitalList """
     try:
@@ -22,7 +23,7 @@ def hospitalList(connectionString):
         print("Exception in Hospital List Query ",Ex )
         info =exceptioninfo(Ex,hospitalListQuery)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to fetch hospital list", detail=info, exc=Ex)
 
 def hospitalListCount(connectionString):
     try:
@@ -36,5 +37,5 @@ def hospitalListCount(connectionString):
         print("Exception in Hospital List Count Query ",Ex )
         info =exceptioninfo(Ex,hospitalListQuery)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to fetch hospital list count", detail=info, exc=Ex)
 

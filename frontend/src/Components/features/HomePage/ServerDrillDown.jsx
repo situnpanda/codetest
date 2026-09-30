@@ -407,8 +407,8 @@ function ServerDrillDown({date,globalFilterChoice, globalFilterData, appInsights
         .then((response) => response.json())
         .then((data) =>{ 
         //console.log(JSON.parse(data["vmRebootEvents"]))
-            if(Object.keys(JSON.parse(data["vmRebootEvents"])).length>0){
-                setRebootEvent(convertTimeToPreferredTZ(JSON.parse(data["vmRebootEvents"])))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+                setRebootEvent(convertTimeToPreferredTZ(JSON.parse(data["Data"])))
             }
             setLoading(prevLoading=>({
                 ...prevLoading,
@@ -450,7 +450,7 @@ function ServerDrillDown({date,globalFilterChoice, globalFilterData, appInsights
         .then((response) => response.json())
         .then((data) => {
             console.log("ServerProcessMetrics raw response:", data);
-            var raw = data && data["ServerProcessMetrics"];
+            var raw = data && data["Data"];
             var parsed = {};
             try {
                 parsed = typeof raw === "string" ? JSON.parse(raw) : (raw || {});
@@ -2146,7 +2146,8 @@ useEffect(() => {
             if (!response.ok) throw new Error("Non-200 response");
             return response.json();
         })
-        .then((data) => {
+        .then((envelope) => {
+            const data = (envelope && envelope.Data) ? envelope.Data : {};
             console.log("Fetched graph Servers DCX Data:", data);
             setdcxServersGraphData(data);
     
@@ -2483,10 +2484,10 @@ useEffect(() => {
         
             // //console.log("CPU Logs")
             console.log(data)
-            console.log(JSON.parse(data["CpuUtilization"]))
+            console.log(JSON.parse(data["Data"]))
             
-            if(Object.keys(JSON.parse(data["CpuUtilization"])).length>0){
-                setServerCpuUtilization(convertTimeToPreferredTZ(JSON.parse(data["CpuUtilization"])))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+                setServerCpuUtilization(convertTimeToPreferredTZ(JSON.parse(data["Data"])))
             }
             else{
                 setServerCpuUtilization({
@@ -2543,8 +2544,8 @@ useEffect(() => {
     
             const data = await response.json();
     
-            if (data["ServerUptime"]) {
-                const parsedData = JSON.parse(data["ServerUptime"]);
+            if (data["Data"]) {
+                const parsedData = JSON.parse(data["Data"]);
     
                 // Check if all values inside ServerUptime are empty
                 const allEmpty = Object.values(parsedData).every(
@@ -2612,8 +2613,8 @@ useEffect(() => {
             // //console.log("Memory Logs")
             // //console.log(JSON.parse(data["MemoryUtilization"]))
 
-            if(Object.keys(JSON.parse(data["MemoryUtilization"])).length>0){
-                setServerMemoryUtilization(convertTimeToPreferredTZ(JSON.parse(data["MemoryUtilization"])))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+                setServerMemoryUtilization(convertTimeToPreferredTZ(JSON.parse(data["Data"])))
             }
             else{
                 setServerMemoryUtilization({
@@ -2709,12 +2710,12 @@ useEffect(() => {
             const data = await response.json();
     
             // Check if the response contains fileshare utilization data
-            if (Object.keys(JSON.parse(data["FileshareUtilization"])).length > 0) {
+            if (Object.keys(JSON.parse(data["Data"])).length > 0) {
                 if (aggregate==='yes'){
-                    setServerFileshareUtilization(JSON.parse(data["FileshareUtilization"]));
+                    setServerFileshareUtilization(JSON.parse(data["Data"]));
                     console.log("Filesharedata",serverFileshareUtilization)}
                 else{
-                    setServerFileshareUtilizationAvg(convertTimeToPreferredTZ(JSON.parse(data["FileshareUtilization"])));
+                    setServerFileshareUtilizationAvg(convertTimeToPreferredTZ(JSON.parse(data["Data"])));
                     console.log("Filesharedataaggregate yes: ",serverFileshareUtilizationAvg)}
             } else {
                 setServerFileshareUtilization({
@@ -2783,8 +2784,8 @@ useEffect(() => {
             //console.log("Disk Logs")
             //console.log(JSON.parse(data["DiskUtilization"]))
 
-            if(Object.keys(JSON.parse(data["DiskUtilization"])).length>0){
-                setServerDiskUtilization(convertTimeToPreferredTZ(JSON.parse(data["DiskUtilization"])))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+                setServerDiskUtilization(convertTimeToPreferredTZ(JSON.parse(data["Data"])))
             }
             else{
                 setServerDiskUtilization({
@@ -2848,7 +2849,7 @@ useEffect(() => {
         .then((response) => response.json())
         .then((data) => { 
             // console.log("Azure Patch Compliance Data:", JSON.parse(data["PatchCompliance"]));
-            const patchData = data["PatchCompliance"];
+            const patchData = data["Data"];
     
             if (!patchData || Object.keys(patchData).length === 0) {
                 setPatchCompliance("NA");  // Indicate that data is not available
@@ -2906,8 +2907,8 @@ useEffect(() => {
     .then((data) => { 
         // console.log("Azure Tag Compliance Data:", JSON.parse(data["TagCompliance"]));
         
-        if (Object.keys(JSON.parse(data["TagCompliance"])).length > 0) {
-            setTagComplianceData(JSON.parse(data["TagCompliance"]));
+        if (Object.keys(JSON.parse(data["Data"])).length > 0) {
+            setTagComplianceData(JSON.parse(data["Data"]));
         } else {
             setTagComplianceData({
                 "tagCompliance": {}
@@ -2963,12 +2964,12 @@ var fetchServerBackup = async (serverName) => {
     .then((data) => { 
         console.log("Azure Server Backup Data issss:", data);
 
-        if (!data["ServerBackup"] || data["ServerBackup"] === "NA" || Object.keys(JSON.parse(data["ServerBackup"] || "{}")).length === 0) {
+        if (!data["Data"] || data["Data"] === "NA" || Object.keys(JSON.parse(data["Data"] || "{}")).length === 0) {
             console.log("came inside if cond")
             setAzureBackup("NA");  // Mark as "Data yet to be integrated"
         } else {
-            console.log("The backup data is", data["ServerBackup"])
-            setAzureBackup(JSON.parse(data["ServerBackup"]));
+            console.log("The backup data is", data["Data"])
+            setAzureBackup(JSON.parse(data["Data"]));
         }
 
         setLoading(prevLoading => ({
@@ -3030,9 +3031,9 @@ var fetchServerBackup = async (serverName) => {
         .then((response) => response.json())
         .then((data) =>{ 
             console.log("Server Status - " + appName)
-            console.log(JSON.parse(data["ServerStatus"]))
-            if(Object.keys(JSON.parse(data["ServerStatus"])).length>0){
-                setServerStatus(JSON.parse(data["ServerStatus"]))
+            console.log(JSON.parse(data["Data"]))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+                setServerStatus(JSON.parse(data["Data"]))
             }
             else{
                 setServerStatus({
@@ -3139,7 +3140,8 @@ var fetchServerBackup = async (serverName) => {
             }
             return response.json();
         })
-        .then((data) => {
+        .then((envelope) => {
+            const data = (envelope && envelope.Data) ? envelope.Data : {};
             console.log("Fetched Critical Servers DCX Data:", data);
             console.log("The port details for critical are", data)
             Object.keys(data).forEach(server => {
@@ -3205,7 +3207,8 @@ var fetchServerBackup = async (serverName) => {
             }
             return response.json();
         })
-        .then((data) => {
+        .then((envelope) => {
+            const data = (envelope && envelope.Data) ? envelope.Data : {};
             console.log("Fetched Warning Servers DCX Data:", data);
             console.log("The port details for warning are", data);
             Object.keys(data).forEach(server => {
@@ -3269,7 +3272,8 @@ var fetchServerBackup = async (serverName) => {
             }
             return response.json();
         })
-        .then((data) => {
+        .then((envelope) => {
+            const data = (envelope && envelope.Data) ? envelope.Data : {};
             console.log("Fetched okay Servers DCX Data:", data);
             console.log("The port details for okay are", data);
             Object.keys(data).forEach(server => {
@@ -3330,8 +3334,9 @@ var fetchServerBackup = async (serverName) => {
             }
             return response.json();
         })
-        .then((data) => {
-            console.log("Fetched DCX Server Data:", data);
+        .then((envelope) => {
+            console.log("Fetched DCX Server Data:", envelope);
+            const data = (envelope && envelope.Data) ? envelope.Data : {};
             setDcxFullServerDetailsData(data);
 
             const criticalServers = data.ServerStatus.filter(server => server.critical > 0).map(server => server.server);
@@ -3438,7 +3443,8 @@ var fetchServerBackup = async (serverName) => {
             }
             return response.json();
         })
-        .then((data) => {
+        .then((envelope) => {
+            const data = (envelope && envelope.Data) ? envelope.Data : [];
             if (data && data.length > 0) {
                 setVmSkuDetails(data); // Update the VM details state
                 const averages = calculateAverages(data); // Calculate and set averages

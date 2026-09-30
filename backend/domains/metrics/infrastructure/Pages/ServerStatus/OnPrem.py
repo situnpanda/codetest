@@ -4,6 +4,7 @@ import numpy as np
 import pytz
 from datetime import datetime
 from flask import jsonify
+from shared.appinsights_logger import error_response
 
 def onPremServerStatus(server_names, df_ServerNameAppCI):
     try:
@@ -76,9 +77,9 @@ def onPremServerStatus(server_names, df_ServerNameAppCI):
             print("Exception in connecting to Scom database ",Ex )
             info =exceptioninfo(Ex)
             insert_data(info)
-            return jsonify({'error':str(Ex)}),500
+            return error_response(500, "Failed to connect to SCOM database", detail=info, exc=Ex)
     except Exception as Ex:
         print("Exception in OnPrem Server Status: ",Ex )
         info =exceptioninfo(Ex,query)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to fetch on-prem server status", detail=info, exc=Ex)

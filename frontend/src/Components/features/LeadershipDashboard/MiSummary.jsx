@@ -832,8 +832,8 @@ export default function MiSummaryAnalysis({date, appInsights, globalFilterData})
         .then((data) =>{ 
           // console.log("Incidents Observation")
           console.log(data)
-          console.log(JSON.parse(data["incidentObservation"]))
-          var obsData = JSON.parse(data["incidentObservation"])
+          console.log(JSON.parse(data["Data"]))
+          var obsData = JSON.parse(data["Data"])
           var dictObservation = {}
           if(Object.keys(obsData).length>0){
             Object.keys(obsData["Number"]).map((key)=>{
@@ -912,9 +912,9 @@ export default function MiSummaryAnalysis({date, appInsights, globalFilterData})
         .then((response) => response.json())
         .then((data) =>{ 
           console.log("Incidents Data")
-          console.log(JSON.parse(data["incidents"]))
-          if(Object.keys(JSON.parse(data["incidents"])).length>0){
-            var inc = JSON.parse(data["incidents"])
+          console.log(JSON.parse(data["Data"]))
+          if(Object.keys(JSON.parse(data["Data"])).length>0){
+            var inc = JSON.parse(data["Data"])
             inc["Resolution Time(Hours)"]={}
             Object.keys(inc["Resolve_Time_Seconds"]).map((key)=>{
               inc["Resolution Time(Hours)"][key] = parseFloat(inc["Resolve_Time_Seconds"][key]/3600).toFixed(2)

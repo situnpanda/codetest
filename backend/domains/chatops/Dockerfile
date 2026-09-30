@@ -33,9 +33,11 @@ COPY requirements.txt ./
 RUN grep -viE '^(pywin32|pywin32-ctypes)\b' requirements.txt > requirements.linux.txt \
     && pip install --no-cache-dir -r requirements.linux.txt gunicorn==23.0.0
 
-# Bundle only what this microservice needs: the shared layer + the chatops domain.
+# Bundle only what this microservice needs: the shared layer, the chatops
+# domain, and the chatops VSA route slice (apis/chatops.py).
 COPY shared/ ./shared/
 COPY domains/chatops/ ./domains/chatops/
+COPY apis/chatops.py ./apis/chatops.py
 
 RUN useradd --create-home --uid 10001 appuser
 USER appuser

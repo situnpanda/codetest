@@ -1,6 +1,6 @@
 # Tests
 
-Automated tests for iTelemetry v3.
+Automated tests for iTelemetry.
 
 ```
 tests/
@@ -28,7 +28,7 @@ tests/
 ## Running
 
 ```powershell
-# from itelemetry-v3/
+# from itelemetry/
 c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini
 
 # unit tests only (skip Azure/network)

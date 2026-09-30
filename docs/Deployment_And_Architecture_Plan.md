@@ -1,10 +1,10 @@
-# iTelemetry v3 — Deployment, Repo & Branching Master Plan
+# iTelemetry — Deployment, Repo & Branching Master Plan
 
-> One document to understand **everything** about iTelemetry v3: how the code is organized,
+> One document to understand **everything** about iTelemetry: how the code is organized,
 > **why** it is split this way, how we branch, how we ship to **VMs** and **AKS**, and how any
 > domain can graduate into its own microservice.
 >
-> Reading time ~10 min. If you read only one architecture doc for v3, read this one.
+> Reading time ~10 min. If you read only one architecture doc, read this one.
 
 ---
 
@@ -21,10 +21,10 @@
 
 ---
 
-## 1. Repository layout (v3)
+## 1. Repository layout
 
 ```
-itelemetry-v3/
+itelemetry/
 ├── backend/     Flask API + domain logic + shared connectors
 ├── frontend/    Vite + React single-page application (feature-based)
 ├── jobs/        Standalone batch/scheduled scripts (sibling of backend)
@@ -42,7 +42,7 @@ They reach into the backend by adding `backend/` to `sys.path`.
 
 ```
 backend/
-├── main.py            → thin entry point ("on switch"): imports apis.app:app and runs it
+├── main.py            → entry point + composition root: builds the Flask app, registers blueprints/routes; WSGI target `main:app`
 ├── apis/              → "ONLY CALLING" web/routing layer (the front desk)
 │     app.py           → composition root: Flask app, CORS, blueprint registration
 │     alerts.py  application.py  infrastructure.py  metadata.py
@@ -102,8 +102,8 @@ frontend/
 └── src/
     ├── main.jsx           → app bootstrap
     ├── App.jsx            → root component / routing
-    ├── authConfig.js      → MSAL (Azure AD) configuration
-    ├── environment.js     → API base URL (points at the backend / gateway)
+    ├── authConfig.js      → MSAL (Azure AD) configuration; redirectUri `/` (per-origin)
+    ├── environment.js     → API base URL (same-origin `/api/` when hosted; `127.0.0.1:5000` locally)
     └── Components/
         ├── features/      → one folder per feature (clearly separated)
         ├── shared/        → reusable UI components + API client layer
@@ -227,9 +227,9 @@ AKS image needs.
 
 ### 5.3 Readiness checklist per service
 
-| Requirement | Status / action for v3 |
+| Requirement | Status / action |
 | ----------- | ---------------------- |
-| **Thin entry point** | ✅ `main.py` only imports `apis.app:app` — container `CMD` runs a WSGI server against it. |
+| **Thin entry point** | ✅ `main.py` is the composition root and WSGI target — container `CMD` runs a WSGI server against `main:app`. |
 | **12-factor config** | Ensure all secrets/URLs come from env vars / Key Vault, not hardcoded. |
 | **Stateless process** | Move process-local caches (in-memory + `cache_paths` JSON files) to a shared store (e.g. Redis) or a mounted volume before running >1 pod. |
 | **Health endpoints** | Add `/healthz` (liveness) and `/readyz` (readiness) for K8s probes. |
@@ -270,16 +270,24 @@ helm/
     └── backend-app.yaml                    → Argo CD Application (backend)
 ```
 
-The frontend talks to the backend through the ingress `/api/*` route; set the SPA's
-`environment.js` base URL to that ingress host.
+The frontend talks to the backend through the ingress `/api/*` route. `environment.js`
+resolves the API base URL **same-origin** (`${window.location.origin}/api/`), so a single
+frontend image works across dev/test/prod with no per-env rebuild, and it derives the
+environment (development/staging/production) from the hostname:
+
+| Host | Environment |
+| ---- | ----------- |
+| `itelemetry.devwu2.cloud.providence.org` | development |
+| `itelemetry.testwu2.cloud.providence.org` | staging |
+| `itelemetry.wu2.cloud.providence.org` | production |
 
 ---
 
 ## 6. Microservices migration readiness
 
-The v3 layout is a **modular monolith** built so any domain can become its own service.
+The layout is a **modular monolith** built so any domain can become its own service.
 
-### 6.1 Why v3 is ready
+### 6.1 Why it is ready
 
 - **No cross-domain coupling** — `alerting`, `metrics`, `metadata`, `chatops` do **not**
   import each other. Coupling is only *inside* a domain (e.g., `metrics/application` ↔
@@ -303,10 +311,11 @@ The v3 layout is a **modular monolith** built so any domain can become its own s
 1. Copy `domains/<feature>/` into a new service (`services/<feature>/`).
 2. Give it a thin `apis/` entry point + its own `main.py`.
 3. Turn `shared/` into a **pip-installable internal package** the service pins.
-4. Distribute the relevant `apis/app.py` inline routes to the owning service.
+4. Distribute the relevant `main.py` inline routes to the owning service.
 5. Add a `Dockerfile`, a Helm chart on the `helm` branch, and an Argo CD Application.
 6. Front the services with an **API gateway** that routes `/api/*` by path to each service.
-7. Point the frontend's `environment.js` base URL at the gateway.
+7. Serve the SPA and gateway on the **same host** (`/` → frontend, `/api` → gateway);
+   `environment.js` already calls the backend same-origin, so no frontend change is needed.
 
 ### 6.4 Known migration blockers to resolve
 
@@ -321,7 +330,7 @@ The v3 layout is a **modular monolith** built so any domain can become its own s
 
 ### 6.5 Recommendation
 
-Keep v3 as a **modular monolith now** (the structure already supports it) and extract
+Keep the app as a **modular monolith now** (the structure already supports it) and extract
 incrementally, starting with the most independent domain (**chatops** or **metadata**), using
 the same *folder-per-domain + shared-as-library* pattern. Build the **AI chatbot** as a slice
 first, then split it into its **own AKS microservice** — AI workloads iterate fast and have a
@@ -345,7 +354,7 @@ memory/CPU-heavy scaling profile, so isolating it protects the core app.
 | Future services | AKS microservices (extracted domains / chatbot) | Independent scale/release; clean seam from domain slices |
 | Secrets | Azure Key Vault CSI | No secrets in Git (PHI-safe) |
 
-**Bottom line:** v3's layered, domain-first layout gives clean seams to split services,
+**Bottom line:** the layered, domain-first layout gives clean seams to split services,
 GitLab Flow + the `helm` branch give safe staged releases, and Argo CD + JFrog turn every AKS
 deploy of the **frontend** and **backend** images into a reviewable, revertible Git operation.
 **Jobs** keep running on VMs, and future microservices like the AI chatbot slot into AKS

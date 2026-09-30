@@ -1,7 +1,15 @@
+"""ChatOps HTTP route slice.
+
+Web/routing layer for the ``/api/chatInitiator/*`` endpoints consumed by the
+ChatOps feature (early-warning notifications and warning-event actions). Moved
+here from ``domains.chatops.ChatOps`` so all ChatOps APIs live in a single VSA
+route slice. Behavior and route paths are unchanged.
+"""
 import sys
 from pathlib import Path
-import threading
-# Add the parent of 'parent_folder' to sys.path
+
+# Ensure the backend root is importable (shared.*, domains.*) regardless of the
+# current working directory.
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
@@ -76,16 +84,16 @@ def getEarlyWarningData():
             df_earlyWarning["Summary"] = df_earlyWarning["Summary"].apply(json.loads)
             df_earlyWarning["Time Generated"] = df_earlyWarning["Time Generated"].dt.strftime("%Y-%m-%d %H:%M:%SZ")
             df_earlyWarning["Early Warning ID"] = df_earlyWarning["Early Warning ID"].apply(lambda x: to_url_safe(x))
-        return {"Data":df_earlyWarning.to_json(), "status": 200}
+        return {"status": 200, "Data": df_earlyWarning.to_json(), "meta": {}, "error": None}
     
     except Exception as ex:
         if ex.args and len(ex.args) > 0 and isinstance(ex.args[0], dict):
             info = ex.args[0]
-            info["PageName"] = "ChatOps.py"
+            info["PageName"] = "chatops.py"
             insert_data(ex.args[0])
         else:
             info = exceptioninfo(ex)
-            info["PageName"] = "ChatOps.py"
+            info["PageName"] = "chatops.py"
             insert_data(info)
         return error_response(501, "Failed to fetch early warnings data", detail=info, exc=ex)
     
@@ -134,16 +142,16 @@ def getWarningEvents():
             df_warningEvents = pd.DataFrame(np.array(res), columns=["Time Generated","Resource Name","Application CI","Resource Type","Metrics Impacted","Condition","Early Warning ID", "Issue ID", "Status", "Comments"])
             df_warningEvents["Time Generated"] = df_warningEvents["Time Generated"].dt.strftime("%Y-%m-%d %H:%M:%SZ")
             df_warningEvents["Early Warning ID"] = df_warningEvents["Early Warning ID"].apply(lambda x: to_url_safe(x))
-        return {"Data":df_warningEvents.to_json(), "status": 200}
+        return {"status": 200, "Data": df_warningEvents.to_json(), "meta": {}, "error": None}
         
     except Exception as ex:
         if ex.args and len(ex.args) > 0 and isinstance(ex.args[0], dict):
             info = ex.args[0]
-            info["PageName"] = "ChatOps.py"
+            info["PageName"] = "chatops.py"
             insert_data(ex.args[0])
         else:
             info = exceptioninfo(ex)
-            info["PageName"] = "ChatOps.py"
+            info["PageName"] = "chatops.py"
             insert_data(info)
         return error_response(501, "Failed to fetch warning events data", detail=info, exc=ex)
 
@@ -168,15 +176,15 @@ def updateEarlyWarningsData(data={}):
         sqlQueryUpdate = f""" Update [Early Warnings] set [State] = ?, [Last Updated] = GETUTCDATE() where lower([Early Warning ID]) = ?"""
         res = insertDw(connectionString_write, sqlQueryUpdate, arr)
         print(res)
-        return {"Data":"State updated successfully", "status": 200}
+        return {"status": 200, "Data": "State updated successfully", "meta": {}, "error": None}
     except Exception as ex:
         if ex.args and len(ex.args) > 0 and isinstance(ex.args[0], dict):
             info = ex.args[0]
-            info["PageName"] = "ChatOps.py"
+            info["PageName"] = "chatops.py"
             insert_data(ex.args[0])
         else:
             info = exceptioninfo(ex)
-            info["PageName"] = "ChatOps.py"
+            info["PageName"] = "chatops.py"
             insert_data(info)
         return error_response(501, "Failed to update early warnings data", detail=info, exc=ex)
     
@@ -210,17 +218,17 @@ def updateWarningEventsData(data={}):
         sqlQueryUpdate = f""" Update [Potential Issues] set [State] = ?, [Comments] = ?, [Last Updated] = GETUTCDATE() where {" OR ".join(sqlQueryCondition)} """
         res = insertDw(connectionString_write, sqlQueryUpdate, arr)
         print("203", res)
-        return {"Data":"State updated successfully", "status": 200}
+        return {"status": 200, "Data": "State updated successfully", "meta": {}, "error": None}
     
     except Exception as ex:
         print(ex)
         if ex.args and len(ex.args) > 0 and isinstance(ex.args[0], dict):
             info = ex.args[0]
-            info["PageName"] = "ChatOps.py"
+            info["PageName"] = "chatops.py"
             insert_data(ex.args[0])
         else:
             info = exceptioninfo(ex)
-            info["PageName"] = "ChatOps.py"
+            info["PageName"] = "chatops.py"
             insert_data(info)
         return error_response(501, "Failed to update warning events data", detail=info, exc=ex)
     
@@ -289,7 +297,7 @@ def acknowledgeResolveEarlyWarning():
         sqlQueryLog = f""" Insert into [User Activity Logs] ([Email ID], [Feature Name], [Data], [Exception], [Time Generated]) values (?, ?, ?, ?, GETUTCDATE()) """
         res = insertDw(connectionString_write, sqlQueryLog, eventWarningLog)
         print(res)
-        return {"Data":"State updated successfully", "status": 200}
+        return {"status": 200, "Data": "State updated successfully", "meta": {}, "error": None}
     
         # return {"Data":"Early Warning updated successfully", "status": 200}
     except Exception as ex:

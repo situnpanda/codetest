@@ -15,7 +15,8 @@ import pandas
 from flask import Blueprint, request, jsonify
 
 from shared.auth import validateToken
-from shared.cache_paths import cache_path, userToSupportGroupMappingJsonPath
+from shared.appinsights_logger import error_response
+from shared.cache_paths import userToSupportGroupMappingJsonPath
 from shared.filters import getFiltersFromCache
 from shared.variables import globalVariables
 from shared.dataBase import (
@@ -25,7 +26,7 @@ from shared.dataBase import (
     queryDw,
     openConnection,
 )
-from domains.metrics.application.applicationTelemetry import interfacesLogsData
+from domains.metrics.application.applicationTelemetry import interfacesLogsData, serverDownTimeData
 from domains.metrics.infrastructure.infrastructureTelemetry import (
     sendEmail,
     userfilterAlertManager,
@@ -48,91 +49,37 @@ def serverDownDetails():
 
     print("The aggreate is ", aggregate)
     logsData = dict()
-    serverAlertsListJsonPath = os.path.join(cache_path, "serverAlertsList.json")
 
     print("The filter for server down ", filter)
-    #print("The server name is ", serverName)
     print("The starttime is ", start_time)
     print("The endTime is ", end_time)
 
-    if aggregate=="forGAC":
-        print("yes the agg is for gac")
-    if os.path.exists(serverAlertsListJsonPath):
-        print("Aggregate")
-        print("The server alert path exists")
-        with open(serverAlertsListJsonPath, "r") as json_file:
+    # Fetch server down details directly from the database (ServerStatus table via getGACQuery).
+    connectToCrcaMonitoring = connectToDw_AADpwd(
+        "sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org"
+    )
+    apmNumbers = getFiltersFromCache(filter, "apmNumber")
+    server_alerts_df = serverDownTimeData(connectToCrcaMonitoring, apmNumbers, "", aggregate, start_time, end_time)
 
-            server_alerts_df = json_file.read()
-            server_alerts_df = json.loads(server_alerts_df)
-            print("The type of server alerts df is ", type(server_alerts_df["Data"]))
-            server_alerts_df = pandas.read_json(server_alerts_df["Data"])
-            print("The server alerts df is ")
-            print(server_alerts_df)
-            print("Rows with NaT/null in DownTimeEnd:")
-            print(server_alerts_df[server_alerts_df["DownTimeEnd"].isna()])
-            #server_alerts_df["TimeGenerated"] = pandas.to_datetime(server_alerts_df["TimeGenerated"], errors='coerce')
-            server_alerts_df["DownTimeStart"] = pandas.to_datetime(server_alerts_df["DownTimeStart"], errors="coerce")
-            server_alerts_df["DownTimeEnd"] = pandas.to_datetime(server_alerts_df["DownTimeEnd"], errors="coerce")
-            print("The original srtarttime and endtime are",start_time, end_time)
-            start_time = datetime.strptime(start_time, "%Y-%m-%d %I:%M:%S %p")
-            start_time = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
-            start_time = pandas.to_datetime(start_time)
+    if not isinstance(server_alerts_df, pandas.DataFrame) or server_alerts_df.empty:
+        return {"status": 200, "Data": {}, "meta": {}, "error": None}
 
-            end_time = datetime.strptime(end_time, "%Y-%m-%d %I:%M:%S %p")
-            end_time = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
-            end_time = pandas.to_datetime(end_time)
-            print("The formated starttime and endtime are",start_time, end_time)
+    # Normalize AppCI values and filter based on the selected filters.
+    appCI = getFiltersFromCache(filter, "appCI")
+    appCI = [i.strip() for i in appCI.replace("'", "").split(",")]
 
-            appCI = getFiltersFromCache(filter, "appCI")  #check
-            #print("The appci from cache is", appCI)
+    server_alerts_df["AppCI_copy"] = server_alerts_df["AppCI"].str.lower().str.strip()
+    server_alerts_df = server_alerts_df[server_alerts_df["AppCI_copy"].isin(appCI)]
 
-            appCI = [i.strip() for i in appCI.replace("'","").split(",")]
-
-            #alerts_df_sample = server_alerts_df[(server_alerts_df["TimeGenerated"]>=start_time) & (alerts_df["TimeGenerated"]<=end_time)]
-            server_alerts_df_sample = server_alerts_df[
-                (server_alerts_df["DownTimeStart"] >= start_time) &
-                (
-                    (server_alerts_df["DownTimeEnd"].isna()) |
-                    (server_alerts_df["DownTimeEnd"] <= end_time)
-                )
-            ]
-            print("The server alerts df sample is", server_alerts_df_sample)
-            #alerts_df_sample["TimeGenerated"] = alerts_df_sample["TimeGenerated"].dt.strftime('%Y-%m-%d %H:%M')
-            server_alerts_df_sample["DownTimeStart"] = server_alerts_df_sample["DownTimeStart"].dt.strftime('%Y-%m-%d %H:%M')
-            server_alerts_df_sample["DownTimeEnd"] = server_alerts_df_sample["DownTimeEnd"].dt.strftime('%Y-%m-%d %H:%M')
-
-
-            print("The alerts df before processing is", server_alerts_df_sample)
-
-            # Normalize AppCI values and filter
-            server_alerts_df_sample["AppCI_copy"] = server_alerts_df_sample["AppCI"].str.lower().str.strip()
-            server_alerts_df_sample = server_alerts_df_sample[server_alerts_df_sample["AppCI_copy"].isin(appCI)]
-            print("The main sample is")
-            # print(server_alerts_df_sample)
-            # Convert final filtered data to JSON
-            logsData["ServersData"] = server_alerts_df_sample.to_json()
-
-            # Count number of entries
-            json_str = logsData["ServersData"]
-            json_obj = json.loads(json_str)
-
-
-            some_column = next(iter(json_obj))
-            count_entries = len(json_obj[some_column])
-
-            print(f"Number of entries in cache: {count_entries}")
-            #print("The logs data is ")
-            #print(logsData["ServersData"])
-            return jsonify(logsData)    
-
-    return jsonify({})
+    logsData["ServersData"] = server_alerts_df.to_json()
+    return {"status": 200, "Data": logsData["ServersData"], "meta": {}, "error": None}
 
 @operations_bp.route('/api/appValidationAlertConfig', methods=["POST"])
 def app_validation_alert_config():
     data = request.get_json()
     app_cis = data.get('appCIs', [])
     if not app_cis or not isinstance(app_cis, list):
-        return jsonify({"error": "appCIs must be a non-empty list"}), 400
+        return error_response(400, "appCIs must be a non-empty list")
 
     app_cis_sql = ",".join([f"'{ci}'" for ci in app_cis])
     query = f"""
@@ -150,7 +97,7 @@ def app_validation_alert_config():
                 "AppFamily", "AppCI", "ServerName", "MaintenanceEnabled"
             ], row)))
 
-    return jsonify({"data": config_data})
+    return {"status": 200, "Data": config_data, "meta": {}, "error": None}
 
 @operations_bp.route('/api/dcxPortHealthAlertsGAC', methods = ["POST"])
 def dcxPortHealthAlertsGAC():
@@ -213,7 +160,7 @@ def dcxPortHealthAlertsGAC():
             })
             print("formatted_result",formatted_result)
     print("port alerts", formatted_result)    
-    return jsonify({"data": formatted_result}), 200
+    return {"status": 200, "Data": formatted_result, "meta": {}, "error": None}
 
 @operations_bp.route('/api/networkServerCountByAppCI', methods=["POST"])
 def networkServerCountByAppCI():
@@ -261,7 +208,7 @@ def networkServerCountByAppCI():
             })
     
     print("networkServerCountByAppCI result:", formatted_result)
-    return jsonify({"data": formatted_result}), 200
+    return {"status": 200, "Data": formatted_result, "meta": {}, "error": None}
 
 @operations_bp.route("/api/logServiceRequests", methods=["POST"])
 def logServiceRequests():
@@ -286,11 +233,11 @@ def logServiceRequests():
         cursor.execute(insert_query, (datetime.now(),name,serviceType,supportGroups,status))
         conn.commit()
         sendEmail(name, supportGroups)
-        return jsonify({"message": "Request logged successfully!"}), 200
+        return {"status": 200, "Data": "Request logged successfully!", "meta": {}, "error": None}
 
     except Exception as e:
         print(f"Error inserting request: {e}")
-        return jsonify({"status": "error", "message": "There was an error submitting the request. Please try again!"}), 500
+        return error_response(500, "There was an error submitting the request. Please try again!", exc=e)
 
     finally:
         if conn:
@@ -317,7 +264,7 @@ def userSupportGroupMapping():
         })    
 
         #print("The support groups are", support_groups)
-        return jsonify(support_groups),200  #gives the list of all support groups
+        return {"status": 200, "Data": support_groups, "meta": {}, "error": None},200  #gives the list of all support groups
 
     mailAdd = dataPost.get('mailAdd')
     #mailAdd = "sunitha.bist@providence.org"
@@ -330,7 +277,7 @@ def userSupportGroupMapping():
     emails_list = queryDw(connectToCrcaMonitoring, queryRbacAdmin)
 
     if emails_list:
-        return jsonify({"supportGroups": ["All"], "appValidation": "ARIA,Wellsky"}),200
+        return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": "ARIA,Wellsky"}, "meta": {}, "error": None},200
     
     #user prefernece query
     userPreferenceQuery = f"""select userEmail, SupportGroups, alertManager, AppValidation from UserPreferenceTable where userEmail like lower('{mailAdd}')"""
@@ -361,7 +308,7 @@ def userSupportGroupMapping():
             #print("The sql support group is", sql_support_groups_str)
             if sql_support_groups_str == 'All':
                 #print("Came inside the all condition")
-                return jsonify({"supportGroups": ["All"], "appValidation": app_validation_value}), 200
+                return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
             if sql_support_groups_str:
                 sql_support_groups = [grp.strip() for grp in sql_support_groups_str.split(',') if grp]
                 if("IS Applications - Women and Children" in sql_support_groups_str):
@@ -381,20 +328,20 @@ def userSupportGroupMapping():
         #print("Final combined support groups are:", combined_support_groups)
         if set(combined_support_groups) == set(all_support_groups):
             #print("Support groups match exactly.")
-            return jsonify({"supportGroups": ["All"], "appValidation": app_validation_value}), 200
+            return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
 
         if combined_support_groups:
-            return jsonify({"supportGroups": combined_support_groups, "appValidation": app_validation_value}), 200  
+            return {"status": 200, "Data": {"supportGroups": combined_support_groups, "appValidation": app_validation_value}, "meta": {}, "error": None}, 200  
         
-        return jsonify({"supportGroups": ["All"], "appValidation": app_validation_value}), 200
+        return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
     
     else:
         app_validation_value = "NoAccess"
         if userPreferenceList and len(userPreferenceList[0]) > 3 and userPreferenceList[0][3]:
             app_validation_value = userPreferenceList[0][3]
-        return jsonify({"supportGroups": ["All"], "appValidation": app_validation_value}), 200
+        return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
     
-    return jsonify({"supportGroups": ["All"], "appValidation": "NoAccess"}),200
+    return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": "NoAccess"}, "meta": {}, "error": None},200
 
 @operations_bp.route('/api/dcxPortWatcher', methods=["POST"])
 def dcxPortWatcher():
@@ -473,10 +420,10 @@ def dcxPortWatcher():
             }
             print("The final response is", final_response)
 
-            return jsonify(final_response), 200
+            return {"status": 200, "Data": final_response, "meta": {}, "error": None}, 200
 
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return error_response(500, "Failed to fetch server status details", detail=str(e), exc=e)
     
 
     elif mode == "portDetails":
@@ -488,7 +435,7 @@ def dcxPortWatcher():
         #servers = ["devicappv6dxb24", "devicappv9qldlm", "devicappv97889v"]
         #condition = 'warning'
         if not servers or not condition:
-            return jsonify({"error": "Both 'servers' and 'condition' are required."}), 200
+            return {"status": 200, "Data": {"error": "Both 'servers' and 'condition' are required."}, "meta": {}, "error": None}, 200
         
         EXTERNAL_API_URL = "https://dcxportwatcher.providence.org/api/api/DataFetch/Packet"
 
@@ -536,7 +483,7 @@ def dcxPortWatcher():
                     server, _ = futures[future]
                     results[server].append({"error": str(e)})
 
-        return jsonify(dict(results))
+        return {"status": 200, "Data": dict(results), "meta": {}, "error": None}
     
     elif mode == "graphDetails":
         print("Yes the mode is correct for all ports")
@@ -547,7 +494,7 @@ def dcxPortWatcher():
         #condition = dataPost.get("condition", "")
 
         if not port or not time or not servers:
-            return jsonify({"error": "Fields 'port', 'time', and 'server' are required."}), 200
+            return {"status": 200, "Data": {"error": "Fields 'port', 'time', and 'server' are required."}, "meta": {}, "error": None}, 200
 
         EXTERNAL_API_URL = "https://dcxportwatcher.providence.org/api/api/DataFetch/Graph"
 
@@ -583,10 +530,9 @@ def dcxPortWatcher():
                 except Exception as e:
                     results[server] = {"error": str(e)}
 
-        return jsonify(results), 200
+        return {"status": 200, "Data": results, "meta": {}, "error": None}, 200
 
-    return jsonify({"error": "No conditions matched"})
-
+    return {"status": 200, "Data": {"error": "No conditions matched"}, "meta": {}, "error": None}
 
 @operations_bp.route('/api/interfaceHealthLogs', methods=["POST"])
 def interfaceLogsFinal():
@@ -623,8 +569,7 @@ def interfaceLogsFinal():
             "Total Interfaces": total_interfaces
         }
     print(response)  # Log for debugging
-    return jsonify(response)
-
+    return {"status": 200, "Data": response, "meta": {}, "error": None}
 
 @operations_bp.route('/api/diskSkuRecommendation', methods=["POST"])
 def diskskurecommendation():
@@ -638,21 +583,19 @@ def diskskurecommendation():
     # Call the function with the VM name
     vmdetails_df = diskdetails_df(connectToCrcaMonitoring, vm_name)
     if(vmdetails_df is None):
-       return jsonify({"message": "VM SKU details not found"}), 200
+       return {"status": 200, "Data": {"message": "VM SKU details not found"}, "meta": {}, "error": None}, 200
     
     # Convert the DataFrame to JSON and return
     json_data = vmdetails_df.to_json(orient="records")
 
-    return jsonify(json.loads(json_data))
-
+    return {"status": 200, "Data": json.loads(json_data), "meta": {}, "error": None}
 
 @operations_bp.route('/api/getUserWatchlistAlertManager', methods=['POST'])
 def getUserWatchListAlertManager():
 
     connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
     user_filters = userfilterAlertManager(connectToServicePerf)
-    return user_filters
-
+    return {"status": 200, "Data": user_filters, "meta": {}, "error": None}
 
 @operations_bp.route('/api/submitMaintenance', methods=['POST'])
 def submit_maintenance():
@@ -660,16 +603,16 @@ def submit_maintenance():
         
         auth = request.headers.get("Authorization")
         if not (auth and len(auth.split(" ")) == 2 and auth.split(" ")[0] == "Bearer"):
-            return {"Message": "Invalid Token"}, 501
+            return error_response(501, "Invalid Token")
         
         token = auth.split(" ")[1]
         res,emailId = validateToken(token)
         if not res:
-            return {"Message": "Invalid Token"}, 501
+            return error_response(501, "Invalid Token")
  
     except Exception as e:
         print(f"Auth error: {e}")
-        return {"Message": "Invalid Token"}, 501
+        return error_response(501, "Invalid Token", exc=e)
  
    
     form_data = request.get_json()
@@ -686,19 +629,19 @@ def submit_maintenance():
     # --- Validate required fields
     required_fields = [user_email, justification, start_time, end_time, server_names, app_family, app_ci, distributionList]
     if any(field is None or (isinstance(field, list) and len(field) == 0) for field in required_fields):
-        return jsonify({"status": "error", "message": "Please complete all required fields."}), 400
+        return error_response(400, "Please complete all required fields.")
  
     # --- Format dates ---
     try:
         start_time_dt = datetime.strptime(start_time, "%d-%m-%Y %H:%M").strftime("%Y-%m-%d %H:%M:%S")
         end_time_dt = datetime.strptime(end_time, "%d-%m-%Y %H:%M").strftime("%Y-%m-%d %H:%M:%S")
     except ValueError:
-        return jsonify({"status": "error", "message": "Invalid date format."}), 400
+        return error_response(400, "Invalid date format.")
  
     # --- Find server details (custom helper) ---
     servers = find_servers_by_name(server_names)
     if not servers:
-        return jsonify({"status": "error", "message": "No servers found"}), 404
+        return error_response(404, "No servers found")
  
     # --- Database Connection ---
     connectionString = connectToDw_AADpwd_Write(
@@ -744,16 +687,15 @@ def submit_maintenance():
         conn.commit()
         print("Maintenance request inserted successfully via stored procedure.")
  
-        return jsonify({"status": "success", "message": "Maintenance request submitted successfully!"}), 200
+        return {"status": 200, "Data": "Maintenance request submitted successfully!", "meta": {}, "error": None}, 200
  
     except Exception as e:
         print(f"Error executing stored procedure: {e}")
-        return jsonify({"status": "error", "message": "There was an error submitting the request. Please try again!"}), 500
+        return error_response(500, "There was an error submitting the request. Please try again!", exc=e)
  
     finally:
         if conn:
             conn.close()
-
 
 @operations_bp.route('/api/filteralertmanagement', methods=["POST"])
 def filteralertmanagement():
@@ -768,7 +710,7 @@ def filteralertmanagement():
         connectionStringAzure = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         
         filters = alertfilterdf(connectToServicePerf, email, connectionStringAzure)  # Pass hosting type to filter data
-        return filters
+        return {"status": 200, "Data": filters, "meta": {}, "error": None}
     
     except Exception as e:
-        return {"error": "An unexpected error occurred", "details": str(e)}, 500
+        return error_response(500, "An unexpected error occurred", detail=str(e), exc=e)

@@ -105,9 +105,9 @@ def getMoxaPerf(data={}):
         en = datetime.now()
         timeTakenByKqlQuery = (en - st).total_seconds()
 
-        response = {"Data": df_res.to_json(), "status": 200, "Time Taken by Kql LAW": timeTakenByKqlQuery}
+        response = {"status": 200, "Data": df_res.to_json(), "meta": {"Time Taken by Kql LAW": timeTakenByKqlQuery}, "error": None}
         if includeLatest:
-            response["Latest"] = df_latest.to_json()
+            response["meta"]["Latest"] = df_latest.to_json()
         del df_res, df_latest
         gc.collect()
         return response

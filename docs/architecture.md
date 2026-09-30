@@ -1,6 +1,6 @@
 # Architecture
 
-iTelemetry v3 is organized as a **modular monolith** with clear domain boundaries,
+iTelemetry is organized as a **modular monolith** with clear domain boundaries,
 designed so any domain can later be extracted into its own microservice.
 
 ## Layers

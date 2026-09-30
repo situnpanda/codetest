@@ -57,9 +57,10 @@ def getUserMetrics():
         timeTakenByKqlQuery = (en - st).total_seconds()
 
         return {
-            "Data": df_res.to_json(),
             "status": 200,
-            "Time Taken by Kql ADX": timeTakenByKqlQuery
+            "Data": df_res.to_json(),
+            "meta": {"Time Taken by Kql ADX": timeTakenByKqlQuery},
+            "error": None
         }
 
     except Exception as ex:
@@ -268,9 +269,10 @@ def getPerformanceMetrics():
         timeTaken = (en - st).total_seconds()
 
         return {
-            "Data": json.dumps(payload),
             "status": 200,
-            "Time Taken by Kql LAW": timeTaken
+            "Data": json.dumps(payload),
+            "meta": {"Time Taken by Kql LAW": timeTaken},
+            "error": None
         }
 
     except Exception as ex:

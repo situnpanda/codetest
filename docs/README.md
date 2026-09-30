@@ -1,6 +1,6 @@
-# iTelemetry v3 — Documentation
+# iTelemetry — Documentation
 
-This folder contains the documentation for the **iTelemetry v3** (CRCA Services) platform.
+This folder contains the documentation for the **iTelemetry** (CRCA Services) platform.
 
 ## Contents
 
@@ -18,7 +18,7 @@ This folder contains the documentation for the **iTelemetry v3** (CRCA Services)
 ## Repository layout
 
 ```
-itelemetry-v3/
+itelemetry/
 ├── backend/     Flask API + domain logic + shared connectors
 ├── frontend/    Vite + React single-page application
 ├── jobs/        Standalone batch/scheduled scripts

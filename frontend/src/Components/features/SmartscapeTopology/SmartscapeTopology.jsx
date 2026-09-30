@@ -488,7 +488,7 @@ function SmartscapeTopology({
         .then((response) => response.json())
         .then((data) =>{ 
           ////console.log("Filter Data Response:", data);
-          setFilterData(data)
+          setFilterData(data.Data)
         })
         .catch((error) => console.error('Error:', error));
     };
@@ -546,8 +546,8 @@ function SmartscapeTopology({
             params["filters"]["appFamily"][0].toLowerCase() ===
             filterOptions["appFamily"][0].toLowerCase()
           ) {
-              if(Object.keys(JSON.parse(data["CpuUtilization"])).length>0){
-                setServerCpuUtilization(JSON.parse(data["CpuUtilization"]))
+              if(Object.keys(JSON.parse(data["Data"])).length>0){
+                setServerCpuUtilization(JSON.parse(data["Data"]))
               }
               else{
                 setServerCpuUtilization({
@@ -626,8 +626,8 @@ function SmartscapeTopology({
             params["filters"]["appFamily"][0].toLowerCase() ===
             filterOptions["appFamily"][0].toLowerCase()
           ) {
-            if(Object.keys(JSON.parse(data["MemoryUtilization"])).length>0){
-              setServerMemoryUtilization(JSON.parse(data["MemoryUtilization"]))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+              setServerMemoryUtilization(JSON.parse(data["Data"]))
             }
             else{
               setServerMemoryUtilization({
@@ -708,8 +708,8 @@ function SmartscapeTopology({
             params["filters"]["appFamily"][0].toLowerCase() ===
             filterOptions["appFamily"][0].toLowerCase()
           ) {
-            if(Object.keys(JSON.parse(data["DiskUtilization"])).length>0){
-              setServerDiskUtilization(JSON.parse(data["DiskUtilization"]))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+              setServerDiskUtilization(JSON.parse(data["Data"]))
             }
             else{
               setServerDiskUtilization({
@@ -767,8 +767,8 @@ function SmartscapeTopology({
       })
         .then((response) => response.json())
         .then((data) =>{ 
-          if(Object.keys(JSON.parse(data["incidents"])).length>0){
-            setIncidentData(JSON.parse(data["incidents"]))
+          if(Object.keys(JSON.parse(data["Data"])).length>0){
+            setIncidentData(JSON.parse(data["Data"]))
           }
           else{
             setIncidentData({
@@ -816,7 +816,7 @@ function SmartscapeTopology({
       })
         .then((response) => response.json())
         .then((data) =>{ 
-          setChangeRequestData(JSON.parse(data["changeRequests"]))
+          setChangeRequestData(JSON.parse(data["Data"]))
           // //console.log("Change Requests")
           // //console.log(JSON.parse(data["changeRequests"]))
           setLoading(prevLoading=>({
@@ -862,8 +862,8 @@ function SmartscapeTopology({
         .then((response) => response.json())
         .then((data) =>{ 
           if(params["filters"]["appFamily"][0].toLowerCase()==filterOptions["appFamily"][0].toLowerCase()){
-            if(Object.keys(JSON.parse(data["ServicesData"])).length>0){
-              setServicesData(JSON.parse(data["ServicesData"]))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+              setServicesData(JSON.parse(data["Data"]))
             }
             else{
               setServicesData({
@@ -919,7 +919,7 @@ function SmartscapeTopology({
       })
         .then((response) => response.json())
         .then((data) =>{ 
-          setAnomaliesData(JSON.parse(data["AnomaliesData"]))
+          setAnomaliesData(JSON.parse(data["Data"]))
           // //console.log("Anomalies Data")
           // //console.log(JSON.parse(data["AnomaliesData"]))
         })
@@ -955,7 +955,7 @@ function SmartscapeTopology({
       })
         .then((response) => response.json())
         .then((data) =>{ 
-          setAlertsData(JSON.parse(data["AlertsData"]))
+          setAlertsData(JSON.parse(data["Data"]))
           // //console.log("Alerts Data")
           // //console.log(JSON.parse(data["AlertsData"]))
         })
