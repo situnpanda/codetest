@@ -415,10 +415,10 @@ export default function HomePage({globalFilterUpdate, globalFilterChoice, global
         .then((response) => response.json())
         .then((data) =>{ 
           console.log("Incidents Data")
-          console.log(JSON.parse(data["incidents"]))
-          if(Object.keys(JSON.parse(data["incidents"])).length>0){
+          console.log(JSON.parse(data["Data"]))
+          if(Object.keys(JSON.parse(data["Data"])).length>0){
             console.log("Hereeee1")
-            setIncidentData(JSON.parse(data["incidents"]))
+            setIncidentData(JSON.parse(data["Data"]))
           }
           else{
             console.log("Hereeee")
@@ -462,10 +462,10 @@ export default function HomePage({globalFilterUpdate, globalFilterChoice, global
             // //console.log(JSON.parse(data["hospitalData"]))
             setHospitalInformation(prevState => ({
                 ...prevState,
-                [typeOfQuery]: JSON.parse(data["hospitalData"])
+                [typeOfQuery]: JSON.parse(data["Data"])
             }))
             localStorage.setItem('HospitalInformation_HomePage', JSON.stringify({
-              [typeOfQuery]: JSON.parse(data["hospitalData"])
+              [typeOfQuery]: JSON.parse(data["Data"])
             }))
         })
         .catch((error) => {
@@ -508,7 +508,7 @@ export default function HomePage({globalFilterUpdate, globalFilterChoice, global
           .then((data) =>{ 
             //console.log("Server List")
             //console.log(JSON.parse(data["ServerLogs"]))
-            setServerList(JSON.parse(data["ServerLogs"]))
+            setServerList(JSON.parse(data["Data"]))
             //globalFilterUpdate(JSON.parse(data["ServerLogs"]))
             setLoading(prevLoading=>({
               ...prevLoading,

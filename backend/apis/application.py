@@ -9,8 +9,8 @@ from flask import Blueprint, request, jsonify
 from shared.dataBase import connectToDw_AADpwd, connectToDw_SqlServerPwd
 from shared.ADX import readFromADX
 from shared.filters import filtersData, getFiltersFromCache, getServerList
-from shared.cache_paths import alertListJsonPath, incidentListJsonPath, serverListJsonPath
 from domains.metrics.application.applicationTelemetry import servicesData, incidentData, getIncidentObservation, changeRequest
+from shared.appinsights_logger import error_response
 
 application_bp = Blueprint("application", __name__)
 
@@ -19,13 +19,12 @@ application_bp = Blueprint("application", __name__)
 def serverLogs():
     print(datetime.now())
     dataPost = request.get_json()
-    logsData = dict()
     filter = dataPost.get('filters')
     
     server_df = getServerList(filter)
-    logsData["ServerLogs"] = server_df["Server"].to_json()
+
     
-    return jsonify(logsData)
+    return {"status": 200, "Data": server_df["Server"].to_json(), "meta": {}, "error": None}
     
 # @app.route('/api/serverLogs', methods = ["POST"])
 # def serverLogs():
@@ -129,50 +128,6 @@ def serviceLogs():
                 # print(s)
                 serverName = s
         else:
-            if aggregate=="forGAC":
-                if os.path.exists(alertListJsonPath):
-                    print("Aggregate")
-                    print("The os path exists")
-                    with open(alertListJsonPath, "r") as json_file: 
-                        
-                        alerts_df = json_file.read()
-                        alerts_df = json.loads(alerts_df)
-                        print("alerts_df_sample service1",len(alerts_df))
-                        # print(type(alerts_df["Data"]))
-                        alerts_df = pandas.read_json(alerts_df["Data"])
-                        print("alerts_df_sample service2",len(alerts_df))
-                        alerts_df["TimeGenerated"] = pandas.to_datetime(alerts_df["TimeGenerated"], errors='coerce')
-                        print("alerts_df_sample service3",alerts_df)
-                        # print(start_time, end_time)
-                        start_time = datetime.strptime(start_time, "%Y-%m-%d %I:%M:%S %p")
-                        start_time = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
-                        start_time = pandas.to_datetime(start_time)
-                        
-                        end_time = datetime.strptime(end_time, "%Y-%m-%d %I:%M:%S %p")
-                        end_time = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
-                        end_time = pandas.to_datetime(end_time)
-                        # print(start_time, end_time)
-                        print("alerts_df_sample service4",alerts_df)
-                        appCI = getFiltersFromCache(filter, "appCI")  #check
-                       
-                        appCI = [i.strip() for i in appCI.replace("'","").split(",")]
-                       
-                        alerts_df["EndTime"] = pandas.to_datetime(alerts_df["EndTime"], errors='coerce')
-
-                        print("alerts_df_sample service5",len(alerts_df))
-                        alerts_df_sample = alerts_df[((end_time - alerts_df["EndTime"]).dt.total_seconds() / 60 < 20) | (alerts_df["TimeGenerated"]>=start_time) & (alerts_df["TimeGenerated"]<=end_time)]
-                        print("alerts_df_sample service6",alerts_df_sample)
-                        alerts_df_sample["EndTime"] = alerts_df_sample["EndTime"].dt.strftime('%Y-%m-%d %H:%M')
-                        alerts_df_sample["TimeGenerated"] = alerts_df_sample["TimeGenerated"].dt.strftime('%Y-%m-%d %H:%M')
-                        
-                        #print("The alerts df before processing is", alerts_df_sample)
-                        # Filter based on appCI
-                        alerts_df_sample["AppCI_copy"] = alerts_df_sample["AppCI"].str.lower()
-                        alerts_df_sample["AppCI_copy"] = alerts_df_sample["AppCI_copy"].str.strip()
-                        alerts_df_sample = alerts_df_sample[alerts_df_sample["AppCI_copy"].isin(appCI)]
-                        logsData["ServicesData"] = alerts_df_sample.to_json()  
-                        return jsonify(logsData)
-                
             apmNumbers = getFiltersFromCache(filter, "apmNumber")
             # print("APM Numbers")
             # print(apmNumbers)
@@ -185,17 +140,14 @@ def serviceLogs():
             if(i!="Service"):
                 print(i+" "+services_df[i])
                 logsData[i] = services_df[i]
-        logsData["ServicesData"] = services_df["Service"].to_json()
-        # print(len(services_df["Service"]))
-        print(aggregate)
         
         e = datetime.now()
         print("Services API: "+ str(s)+" - "+str(e)) 
-        return jsonify(logsData), 200
+        return {"status": 200, "Data": services_df["Service"].to_json(), "meta": dict(logsData), "error": None}, 200
         
     except Exception as ex:
         print(str(ex))
-        return {"Message":str(ex)}, 501
+        return error_response(501, "Failed to fetch service metrics", detail=str(ex), exc=ex)
 
 @application_bp.route('/api/incidentLogs', methods=["POST"])
 def incidentLogs():
@@ -209,29 +161,13 @@ def incidentLogs():
     start_time = dataPost.get('start_time')  # Retrieve the value of the 'start_time' parameter
     end_time = dataPost.get('end_time')  # Retrieve the value of the 'end_time' parameter
     active = dataPost.get('active', "no")
-    #check if the file exists
-    if os.path.exists(incidentListJsonPath):
-        if miBool == "yes" and active == "yes":
-            #print("The os path exists")
-            with open(incidentListJsonPath, "r") as json_file: 
-                incidents_df = json_file.read()
-                print("The incidents df is ", incidents_df)
-                logsData["incidents"] = incidents_df  
+    appCI = getFiltersFromCache(filter, "appCI")
+    connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
+    incidents_df = incidentData(connectToServicePerf, appCI, aggregateBool, start_time, end_time, miBool, active)
+    logsData["incidents"] = incidents_df
 
-        else :
-            appCI = filtersData(filter, "appCI")  #create a local function
-            connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
-            incidents_df = incidentData(connectToServicePerf, appCI, aggregateBool, start_time, end_time, miBool, active)
-            logsData["incidents"] = incidents_df
-              
-    else :
-        appCI = getFiltersFromCache(filter, "appCI")
-        connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
-        incidents_df = incidentData(connectToServicePerf, appCI, aggregateBool, start_time, end_time, miBool, active)
-        logsData["incidents"] = incidents_df
-    
     print("EndTime:"+str(datetime.now()))
-    return jsonify(logsData)
+    return {"status": 200, "Data": logsData["incidents"], "meta": {}, "error": None}
 
 @application_bp.route('/api/incidentObservation', methods=["POST"])
 def incidentObservation():
@@ -249,7 +185,7 @@ def incidentObservation():
     # return jsonify(logsData)
     observation_df = getIncidentObservation(incString)
     logsData["incidentObservation"] = observation_df.to_json()
-    return jsonify(logsData)
+    return {"status": 200, "Data": observation_df.to_json(), "meta": {}, "error": None}
 
 @application_bp.route('/api/changeIncidentevents', methods=["POST"])
 def getEvents():
@@ -260,7 +196,7 @@ def getEvents():
         eventType = dataPost.get('eventType')   # "Change" or "Major Incident"
 
         if eventType not in ["Change", "Major Incident"]:
-            return jsonify({"error": "Invalid eventType"}), 400
+            return error_response(400, "Invalid eventType")
 
         objectName = "Change Request" if eventType == "Change" else "Major Incident"
 
@@ -303,11 +239,11 @@ def getEvents():
                 "status": row["Status"]
             })
 
-        return jsonify({"events": events}), 200
+        return {"status": 200, "Data": events, "meta": {}, "error": None}, 200
 
     except Exception as ex:
         print("Events API Error:", ex)
-        return jsonify({"events": []}), 500 
+        return error_response(500, "Failed to fetch change/incident events", detail=str(ex), exc=ex)
 
 @application_bp.route('/api/changeRequestLogs', methods=["POST"])
 def changeRequestsLogs():
@@ -330,4 +266,4 @@ def changeRequestsLogs():
     #changeRequests_df["Count"] = len(changeRequests_df["changeRequestList"])
     logsData["changeRequests"] = changeRequests_df["changeRequestList"].to_json()
     
-    return jsonify(logsData)
+    return {"status": 200, "Data": changeRequests_df["changeRequestList"].to_json(), "meta": {}, "error": None}

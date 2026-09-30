@@ -7,6 +7,7 @@ import pytz
 from shared.keyVault import connectToKeyVault
 from shared.dataBase import connectToDw, queryDw, deleteDw,insertDw, connectToDw_AADpwd, connectToDw_AADpwd_Write, exceptioninfo, insert_data, connectToAeroDw_SqlServerPwd, connectToDw_SqlServerPwd, connectToDw_SQLServerAero,connectToDw_SqlServerPwdScom, queryAeroSnowflake
 from shared.LogAnalytics import queryInLogAnalytics
+from shared.appinsights_logger import error_response
 from domains.metrics.infrastructure.Pages.ServerStatus.OnPrem import onPremServerStatus
 from domains.metrics.infrastructure.Pages.CpuUtilization.OnPrem import onPremCpuUtilization
 from domains.metrics.infrastructure.Pages.CpuUtilization.Azure import azureCpuUtilization, processDataForDuration
@@ -323,7 +324,7 @@ def diskdetails_df(connectionString, vm):
         print("Exception in disk details: ",Ex )
         info =exceptioninfo(Ex,query)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to fetch disk details", detail=info, exc=Ex)
     
 
 # find the cloud servers for alert manager

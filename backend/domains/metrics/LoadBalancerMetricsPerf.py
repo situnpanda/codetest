@@ -104,10 +104,13 @@ def getLoadBalancerPerf():
             timeTakenByKqlQuery_toReadPerfData = (en2 - st2).total_seconds()
 
         return {
-            "Data": df_res.to_json(),
             "status": 200,
-            "Time Taken by Sql DB": timeTakenBySqlQuery_toReadLbList,
-            "Time Taken by Kql ADX": timeTakenByKqlQuery_toReadPerfData,
+            "Data": df_res.to_json(),
+            "meta": {
+                "Time Taken by Sql DB": timeTakenBySqlQuery_toReadLbList,
+                "Time Taken by Kql ADX": timeTakenByKqlQuery_toReadPerfData,
+            },
+            "error": None,
         }
 
     except Exception as ex:

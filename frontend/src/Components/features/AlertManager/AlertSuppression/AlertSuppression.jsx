@@ -160,13 +160,14 @@ export default function AlertSuppression({userProfileData, appInsights, backendS
         });
         if (response.ok) {
           const data = await response.json();
+          const payload = (data && data.Data) ? data.Data : {};
 
-          setFullData(data.full_data);
-          if (Array.isArray(data.full_data) && data.full_data.length === 0) {
+          setFullData(payload.full_data);
+          if (Array.isArray(payload.full_data) && payload.full_data.length === 0) {
             console.log("No matching records found.");
             setRbacAccess(false)
           }
-          const filteredAppFamilies = [...new Set(data.full_data.map((item) => item.AppFamily))];
+          const filteredAppFamilies = [...new Set(payload.full_data.map((item) => item.AppFamily))];
           const exists = filteredAppFamilies.includes("RightFax");
 
           if (exists) {
@@ -223,7 +224,7 @@ export default function AlertSuppression({userProfileData, appInsights, backendS
           })
           .then((data) => {
             // Assuming the response contains monthly values and historical data
-            const { g, tableData } = data;
+            const { g, tableData } = data.Data;
       
             // Update the state with the fetched data
             setHistoricalData(tableData); // Create this state to hold historical data
@@ -452,7 +453,7 @@ export default function AlertSuppression({userProfileData, appInsights, backendS
       try {
         const response = await fetch(baseUrl + 'getHistoricalDataForAllAppFamilies');
         const data = await response.json();
-        setHistoricalDataForAllAppFamily(data.tableData);
+        setHistoricalDataForAllAppFamily(data.Data.tableData);
         console.log("Fetch historical data")
       } catch (error) {
         console.error("Error fetching data:", error);

@@ -70,7 +70,7 @@ function initializeAppInsights() {
     body: JSON.stringify({ secretName: 'instrumentationKey-itelemetry' }),
   })
     .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error); }))
-    .then(data => data.value)
+    .then(data => data.Data)
     .catch(err => { console.error('[AppInsights] Key fetch failed:', err); return null; })
     .then(key => {
       if (!key) return null;

@@ -85,9 +85,9 @@ export default function ResourceDialog({
           });
           clearTimeout(timeoutId);
           const data = await response.json();
-          if (data && data["Interfaces"] && Array.isArray(data["Interfaces"]) && data["Interfaces"].length > 0) {
+          if (data && data["Data"] && data["Data"]["Interfaces"] && Array.isArray(data["Data"]["Interfaces"]) && data["Data"]["Interfaces"].length > 0) {
             const seen = new Set();
-            data["Interfaces"].forEach(item => {
+            data["Data"]["Interfaces"].forEach(item => {
               const name = item.InterfaceName || item.interfaceName || '';
               const monitor = item.CorepointMonitor || item.corepointMonitor || '';
               const key = `${name.toLowerCase()}|${monitor.toLowerCase()}`;
@@ -170,7 +170,7 @@ export default function ResourceDialog({
           body: JSON.stringify({ appFamily: appFamily || '', appCI: '', type: type })
         });
         const data = await response.json();
-        const parsed = JSON.parse(data.metaData || '{}');
+        const parsed = JSON.parse(data.Data || '{}');
         const removeResourceName = (type === 'services_new' || type === 'urls' || type === 'database_new');
         const keys = Object.keys(parsed).filter(k => !(removeResourceName && k.toLowerCase().replace(/\s/g, '') === 'resourcename'));
         if (keys.length > 0) {

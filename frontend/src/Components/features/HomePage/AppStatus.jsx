@@ -374,16 +374,16 @@ const ApplicationStatus = ({date, appInsights, globalFilterData,preferredTZ, app
         })
         .then((response) => response.json())
         .then((data) =>{ 
-            console.log(JSON.parse(data["ServicesData"]))
-            if(Object.keys(JSON.parse(data["ServicesData"])).length>0){
+            console.log(JSON.parse(data["Data"]))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
                 if(aggregate=="yes"){
                     
-                    setServiceStatus(convertTimeToPreferredTZ(JSON.parse(data["ServicesData"])))
+                    setServiceStatus(convertTimeToPreferredTZ(JSON.parse(data["Data"])))
                 }
                 else{
                     setServicesGraphData((prevState)=>({
                         ...prevState,
-                        "NonAggregate" : convertTimeToPreferredTZ(JSON.parse(data["ServicesData"]))
+                        "NonAggregate" : convertTimeToPreferredTZ(JSON.parse(data["Data"]))
                     }))
                 }
             }
@@ -475,8 +475,8 @@ const ApplicationStatus = ({date, appInsights, globalFilterData,preferredTZ, app
             // if(isEqualJson(currentFilterData,JSON.parse(params["filters"]))){
             //   //console.log("Changed")
             // //console.log(JSON.parse(data["windowsEventLogs"]))
-            if(Object.keys(JSON.parse(data["windowsEventLogs"])).length>0){
-                setWindowsEvent(convertTimeToPreferredTZ(JSON.parse(data["windowsEventLogs"])))
+            if(Object.keys(JSON.parse(data["Data"])).length>0){
+                setWindowsEvent(convertTimeToPreferredTZ(JSON.parse(data["Data"])))
             }
             
             setLoading(prevLoading=>({

@@ -144,12 +144,12 @@ def getCredentialInventory():
 
         credentials_df = pandas.DataFrame(credentials)
         
-        return jsonify({
-            "Data": credentials_df.to_json(),
+        return {
             "status": 200,
-            "count": len(credentials),
-            "objectType": object_type
-        }), 200
+            "Data": credentials_df.to_json(),
+            "meta": {"count": len(credentials), "objectType": object_type},
+            "error": None
+        }, 200
 
     except Exception as ex:
         info = exceptioninfo(ex)

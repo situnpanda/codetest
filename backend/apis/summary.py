@@ -24,12 +24,10 @@ def filters():
     if("filterType" in dataPost):
         if(dataPost['filterType']=="dataFrame"):
             filterDataDF = filtersData(dataPost, "dataFrame")
-            filterData = {}
-            filterData["Data"] = filterDataDF.to_json()
-            return jsonify(filterData)
+            return {"status": 200, "Data": filterDataDF.to_json(), "meta": {}, "error": None}
     else:
         filterData = filtersData(dataPost, "filter")
-    return jsonify(filterData)
+    return {"status": 200, "Data": filterData, "meta": {}, "error": None}
 
 @summary_bp.route('/api/applicationHealthSummary', methods = ["GET"])
 def applicationHealthSummary():
@@ -80,7 +78,7 @@ def applicationHealthSummary():
     logsData = dict()
     logsData["Application Summary"] = df.to_json()
     print(datetime.now())
-    return jsonify(logsData)
+    return {"status": 200, "Data": df.to_json(), "meta": {}, "error": None}
 
 @summary_bp.route('/api/hospitalList', methods=["GET"])
 def hospitalData():
@@ -93,13 +91,13 @@ def hospitalData():
         hopsitalList_df = hospitalListCount(connectToCrcaMonitoring)
     logsData = dict()
     logsData["hospitalData"] = hopsitalList_df.to_json()
-    return jsonify(logsData)
+    return {"status": 200, "Data": hopsitalList_df.to_json(), "meta": {}, "error": None}
 
 @summary_bp.route('/api/mapView')
 def mapViewTelemetry():
     region = request.args.get('region')
     mapViewData = mapView(region)
-    return jsonify(mapViewData)
+    return {"status": 200, "Data": mapViewData, "meta": {}, "error": None}
 
 @summary_bp.route('/anomaliesList')
 def anomaliesData():
@@ -107,13 +105,13 @@ def anomaliesData():
     df_anomaliesList = anomaliesList(connectToCrcaMonitoring)
     logsData = dict()
     logsData["anomaliesList"] = df_anomaliesList.to_json()
-    return jsonify(logsData)
+    return {"status": 200, "Data": df_anomaliesList.to_json(), "meta": {}, "error": None}
 
 @summary_bp.route('/anomaliesInfo')
 def anomaliesInformation():
     connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
     anomalies_data = anomaliesInfo(connectToCrcaMonitoring)
-    return jsonify(anomalies_data)
+    return {"status": 200, "Data": anomalies_data, "meta": {}, "error": None}
 
 @summary_bp.route('/api/infraAnomalies', methods = ['POST'])
 def anomaliesInfra():
@@ -134,7 +132,7 @@ def anomaliesInfra():
     print("main")
     print(anomaliesData)
     logsData["AnomaliesData"] = anomaliesData["anomaliesList"].to_json()
-    return jsonify(logsData)
+    return {"status": 200, "Data": anomaliesData["anomaliesList"].to_json(), "meta": {}, "error": None}
 
 @summary_bp.route('/api/infraAlerts', methods = ['POST'])
 def alertsInfra():
@@ -153,4 +151,4 @@ def alertsInfra():
     connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
     alertsData = infraAlerts(apmNumber, aggregateBool, connectToServicePerf, start_time, end_time)
     logsData["AlertsData"] = alertsData["alertsList"].to_json()
-    return jsonify(logsData)
+    return {"status": 200, "Data": alertsData["alertsList"].to_json(), "meta": {}, "error": None}

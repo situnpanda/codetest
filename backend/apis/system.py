@@ -9,6 +9,7 @@ import requests
 from shared.keyVault import connectToKeyVault
 from shared.dataBase import connectToDw_AADpwd, queryDw
 from shared.LogAnalytics import queryInLogAnalytics
+from shared.appinsights_logger import error_response
 
 system_bp = Blueprint("system", __name__)
 
@@ -22,7 +23,7 @@ def run_process():
     if not token:
         client_secret = connectToKeyVault('iTelemetry-runButton')
         if not client_secret:
-            return jsonify({"error": "Failed to retrieve client secret from Key Vault"}), 500
+            return error_response(500, "Failed to retrieve client secret from Key Vault")
         token_res = requests.post(
             'https://cloud.uipath.com/identity_/connect/token',
             headers={'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'},
@@ -34,7 +35,7 @@ def run_process():
             }
         )
         if token_res.status_code != 200:
-            return jsonify({"error": "Failed to get UiPath token", "details": token_res.text}), 401
+            return error_response(401, "Failed to get UiPath token", detail=token_res.text)
         token = token_res.json().get('access_token')
 
     input_args_string = f'"{str(args).strip()}"'
@@ -44,7 +45,7 @@ def run_process():
     config_result = queryDw(connectionString, config_query)
 
     if not config_result or len(config_result) == 0:
-        return jsonify({"error": f"No configuration found for app family: {app_family}"}), 400
+        return error_response(400, f"No configuration found for app family: {app_family}")
 
     config_row = config_result[0]
     release_key_secret_name = config_row[1]
@@ -54,7 +55,7 @@ def run_process():
 
     release_key = connectToKeyVault(release_key_secret_name)
     if not release_key:
-        return jsonify({"error": f"Failed to retrieve release key from Key Vault for: {release_key_secret_name}"}), 500
+        return error_response(500, f"Failed to retrieve release key from Key Vault for: {release_key_secret_name}")
 
     print(f"Config loaded - Family: {app_family}, ReleaseName: {release_name}, RobotIds: {robot_ids}, OrgUnitId: {org_unit_id}")
 
@@ -83,8 +84,7 @@ def run_process():
         },
         data=payload_str
     )
-    return (r.text, r.status_code, {'Content-Type': 'application/json'})
-
+    return {"status": r.status_code, "Data": r.text, "meta": {}, "error": None}, r.status_code
 
 @system_bp.route("/api/telemetryAppInsights", methods=["POST"])
 def telemetry_proxy():
@@ -103,21 +103,19 @@ def telemetry_proxy():
         print("Exception")
         return jsonify({"error": "Failed to forward telemetry"}), 500
 
-
 @system_bp.route('/api/getSecrets', methods=["POST"])
 def getSecrets():
     data = request.json
     secret_name = data.get("secretName")
 
     if not secret_name:
-        return jsonify({"error": "Secret name not provided"}), 400
+        return error_response(400, "Secret name not provided")
     secret_value = connectToKeyVault(secret_name)
 
     if not secret_value:
-        return jsonify({"error": "Secret not found"}), 404
+        return error_response(404, "Secret not found")
 
-    return jsonify({"value": secret_value}), 200
-
+    return {"status": 200, "Data": secret_value, "meta": {}, "error": None}, 200
 
 @system_bp.route('/api/checkLogAnalyticsAccess', methods=["GET"])
 def checkLogAnalyticsAccess():
@@ -139,4 +137,4 @@ def checkLogAnalyticsAccess():
     workspaceId = "552b9630-b106-4fe7-a1fa-97d04a0010ef"
     serverStatus = queryInLogAnalytics(workspaceId, logAnalyticsQuery, "", "")
 
-    return serverStatus.to_json()
+    return {"status": 200, "Data": serverStatus.to_json(), "meta": {}, "error": None}

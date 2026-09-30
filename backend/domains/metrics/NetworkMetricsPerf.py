@@ -126,7 +126,7 @@ def getNetworkPerf(data={}):
             timeTakenByKqlQuery_toReadPerfData = (en2-st2).total_seconds()
 
         # if(type=="api"):
-        return {"Data":df_res.to_json(),"status":200, "Time Taken by Sql DB":timeTakenBySqlQuery_toReadServerList,"Time Taken by Kql ADX":timeTakenByKqlQuery_toReadPerfData}
+        return {"status": 200, "Data": df_res.to_json(), "meta": {"Time Taken by Sql DB": timeTakenBySqlQuery_toReadServerList, "Time Taken by Kql ADX": timeTakenByKqlQuery_toReadPerfData}, "error": None}
         # else:
         #     return df_res
     except Exception as ex:

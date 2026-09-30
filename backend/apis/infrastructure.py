@@ -8,7 +8,7 @@ from flask import Blueprint, request, jsonify
 from shared.dataBase import connectToDw_AADpwd, connectToDw_SqlServerPwd, queryDw
 from shared.filters import filtersData, getFiltersFromCache
 from shared.variables import globalVariables
-from shared.cache_paths import alertInfraListJsonPath
+from shared.appinsights_logger import error_response
 from domains.metrics.infrastructure.infrastructureTelemetry import (
     databaseMetricData,
     serverStatus,
@@ -30,7 +30,6 @@ from domains.metrics.infrastructure.infrastructureTelemetry import (
 
 infrastructure_bp = Blueprint("infrastructure", __name__)
 
-
 @infrastructure_bp.route("/api/databaseMetrics", methods=["POST"])
 def databaseMetrics():
     dataPost = request.get_json()
@@ -47,14 +46,14 @@ def databaseMetrics():
     try:
         dbMetric_df = databaseMetricData(aggregate, start_time, end_time, appCI)
         print(dbMetric_df)
-        logsData = {"DBMetrics": dbMetric_df.to_json()}
+        result_json = dbMetric_df.to_json()
         
         # print("Response Data:", logsData)
-        return jsonify(logsData) , 200
+        return {"status": 200, "Data": result_json, "meta": {}, "error": None}, 200
     except Exception as ex:
         print("in Exception DB")
         print(ex)
-        return {}, 501
+        return error_response(501, "Failed to fetch database metrics", detail=str(ex), exc=ex)
 
 @infrastructure_bp.route('/api/serverStatus', methods = ["POST"])
 def appServerStatus():
@@ -84,7 +83,7 @@ def appServerStatus():
     
     logsData["ServerStatus"] = server_df.to_json()
     print(datetime.now())
-    return jsonify(logsData)
+    return {"status": 200, "Data": server_df.to_json(), "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/PatchCompliance', methods=["POST"])
 def azurePatchCompliance():
@@ -138,7 +137,7 @@ def azurePatchCompliance():
     else:
         logsData["PatchCompliance"] = patch_df.to_json()
 
-    return jsonify(logsData)
+    return {"status": 200, "Data": logsData["PatchCompliance"], "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/appValidation', methods=["POST"])
 def appValidation():
@@ -148,7 +147,7 @@ def appValidation():
     logsData = {}
     df = ValidationData(aggregate,appCI)
     logsData = {"appValidation": df.to_json()}
-    return jsonify(logsData)
+    return {"status": 200, "Data": df.to_json(), "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/ServerBackup', methods=["POST"])
 def azureServerBackup():
@@ -174,7 +173,7 @@ def azureServerBackup():
     else:
         logsData["ServerBackup"] = backup_df.to_json()
 
-    return jsonify(logsData)
+    return {"status": 200, "Data": logsData["ServerBackup"], "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/serverEnvironmentLogs', methods=["POST"])
 def serverEnvironmentLogs():
@@ -197,7 +196,7 @@ def serverEnvironmentLogs():
     if(aggregateBool=="yes"):
         selected_keys=["Production","Development","Test"]
         serverAggergateValue = {key: globalVariables.server_environment_data[key] for key in selected_keys if key in globalVariables.server_environment_data}
-        return jsonify(serverAggergateValue)
+        return {"status": 200, "Data": serverAggergateValue, "meta": {}, "error": None}
     
     df = server_environment_df["Server"]
 
@@ -213,7 +212,7 @@ def serverEnvironmentLogs():
             end = -1
         
     logsData["environmentLogs"] = df.iloc[start:end].to_json()
-    return jsonify(logsData)
+    return {"status": 200, "Data": logsData["environmentLogs"], "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/windowEventLogs', methods=["POST"])
 def windowEventLog():
@@ -246,7 +245,7 @@ def windowEventLog():
 
     df = windowEvent_df["Server"]
     logsData["windowsEventLogs"] = df
-    return jsonify(logsData)
+    return {"status": 200, "Data": df, "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/serverProcessMetrics', methods=["POST"])
 def serverProcessMetricsLog():
@@ -265,7 +264,7 @@ def serverProcessMetricsLog():
 
     processMetricsJson = serverProcessMetrics_df(serverName.lower(), start_time, end_time)
     logsData["ServerProcessMetrics"] = processMetricsJson
-    return jsonify(logsData)
+    return {"status": 200, "Data": processMetricsJson, "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/applicationReliability', methods=["POST"])
 def applicationReliabilityLog():
@@ -282,7 +281,7 @@ def applicationReliabilityLog():
     connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
     insights_df = appReliability(connectToServicePerf, apmNumbers,aggregateBool, start_time, end_time)
 
-    return jsonify(insights_df)
+    return {"status": 200, "Data": insights_df, "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/applicationexceptions', methods=["POST"])
 def applicationexceptionLog():
@@ -300,9 +299,7 @@ def applicationexceptionLog():
     connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
     insights_df = appExceptions(connectToServicePerf, apmNumbers, aggregateBool, start_time, end_time)
     
-    return jsonify(insights_df)
-
-
+    return {"status": 200, "Data": insights_df, "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/VMRebootLogs', methods=["POST"])
 def VMRebootLog():
@@ -338,7 +335,7 @@ def VMRebootLog():
 
     logsData["vmRebootEvents"] = df
 
-    return jsonify(logsData)
+    return {"status": 200, "Data": df, "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/WorkstationMetricsLogs', methods=["GET"])
 def WorkstationMetricsLog():
@@ -357,7 +354,7 @@ def WorkstationMetricsLog():
     if(aggregateBool=="yes"):
         selected_keys=["totalWorkstations","CPUUtization","memoryUtilization"]
         serverAggergateValue = {key: globalVariables.workstation_metricJs_data[key] for key in selected_keys if key in globalVariables.workstation_metrics_data}
-        return jsonify(serverAggergateValue)
+        return {"status": 200, "Data": serverAggergateValue, "meta": {}, "error": None}
     
     df = work_df["Server"]
     if(page==None):
@@ -373,8 +370,7 @@ def WorkstationMetricsLog():
 
     logsData["workstationLogs"] = df.iloc[start:end].to_json()
 
-    return jsonify(logsData)
-
+    return {"status": 200, "Data": logsData["workstationLogs"], "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/azureServerMetricsCPUDatalogs', methods=["POST"])
 def azureServerMetricsCPUDatalog():
@@ -397,46 +393,6 @@ def azureServerMetricsCPUDatalog():
     connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
 
     if(serverName=="" and ("subRg" not in filter)):
-        if aggregateBool=="forGAC" :
-            if os.path.exists(alertInfraListJsonPath):
-                print("Aggregate")
-                print("The os path exists in infra")
-                with open(alertInfraListJsonPath, "r") as json_file: 
-                    
-                    alerts_df = json_file.read()
-                    alerts_df = json.loads(alerts_df)
-                    # print(type(alerts_df["Data"]))
-                    alerts_df = pandas.read_json(alerts_df["Cpu Data"])
-                    alerts_df["TimeGenerated"] = pandas.to_datetime(alerts_df["TimeGenerated"], errors='coerce')
-                    # print(start_time, end_time)
-                    start_time = datetime.strptime(start_time, "%Y-%m-%d %I:%M:%S %p")
-                    start_time = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
-                    start_time = pandas.to_datetime(start_time)
-                    
-                    end_time = datetime.strptime(end_time, "%Y-%m-%d %I:%M:%S %p")
-                    end_time = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
-                    end_time = pandas.to_datetime(end_time)
-                    print("The start time and end time for cpu are",start_time, end_time)
-                    appCI = getFiltersFromCache(filter, "appCI")
-                    appCI = [i.strip() for i in appCI.replace("'","").split(",")]
-                    # print(appCI)
-                    alerts_df["endTime"] = pandas.to_datetime(alerts_df["endTime"], errors='coerce')
-                    
-                    print("alerts_df_sample cpu1",alerts_df)
-                    
-                    alerts_df_sample = alerts_df[((end_time - alerts_df["endTime"]).dt.total_seconds() / 60 < 30) | (alerts_df["TimeGenerated"]>=start_time) & (alerts_df["TimeGenerated"]<=end_time)]
-                    print("alerts_df_sample cpu2",alerts_df_sample)
-                    alerts_df_sample["endTime"] = alerts_df_sample["endTime"].dt.strftime('%Y-%m-%d %H:%M')
-                    alerts_df_sample["TimeGenerated"] = alerts_df_sample["TimeGenerated"].dt.strftime('%Y-%m-%d %H:%M')
-                    # Filter based on appCI
-                    alerts_df_sample["AppCI_copy"] = alerts_df_sample["AppCI"].str.lower()
-                    alerts_df_sample["AppCI_copy"] = alerts_df_sample["AppCI_copy"].str.strip()
-                    alerts_df_sample = alerts_df_sample[alerts_df_sample["AppCI_copy"].isin(appCI)]
-                    
-                    print(alerts_df_sample)
-                    print("The Alerts df is ", len(alerts_df_sample))
-                    logsData["CpuUtilization"] = alerts_df_sample.to_json()  
-                    return jsonify(logsData)
         # apmNumbers = filtersData(filter, "apmNumber")
         apmNumbers = getFiltersFromCache(filter, "apmNumber")  
         
@@ -500,8 +456,7 @@ def azureServerMetricsCPUDatalog():
 
     print("Azure CPU API: "+ str(st)+" - "+str(en))
     #print("Response Data:", logsData) 
-    return jsonify(logsData)
-
+    return {"status": 200, "Data": logsData.pop("CpuUtilization"), "meta": logsData, "error": None}
 
 @infrastructure_bp.route('/api/azureServerMetricsMemoryDatalogs', methods=["POST"])
 def azureServerMetricsMemoryDatalog():
@@ -523,46 +478,6 @@ def azureServerMetricsMemoryDatalog():
     logsData = dict()
 
     if(serverName=="" and ("subRg" not in filter)):
-        if aggregateBool=="forGAC" :
-            if os.path.exists(alertInfraListJsonPath):
-                print("Aggregate")
-                #print("The os path exists")
-                with open(alertInfraListJsonPath, "r") as json_file: 
-                    
-                    alerts_df = json_file.read()
-                    alerts_df = json.loads(alerts_df)
-                    # print(type(alerts_df["Data"]))
-                    alerts_df = pandas.read_json(alerts_df["Memory Data"])
-                    alerts_df["TimeGenerated"] = pandas.to_datetime(alerts_df["TimeGenerated"], errors='coerce')
-                    # print(start_time, end_time)
-                    start_time = datetime.strptime(start_time, "%Y-%m-%d %I:%M:%S %p")
-                    start_time = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
-                    start_time = pandas.to_datetime(start_time)
-                    
-                    end_time = datetime.strptime(end_time, "%Y-%m-%d %I:%M:%S %p")
-                    end_time = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
-                    end_time = pandas.to_datetime(end_time)
-                    print("The start time and endtime for memory are",start_time, end_time)
-                    appCI = getFiltersFromCache(filter, "appCI")
-                    appCI = [i.strip() for i in appCI.replace("'","").split(",")]
-                    # print(appCI)
-                    alerts_df["endTime"] = pandas.to_datetime(alerts_df["endTime"], errors='coerce')
-                    print("alerts_df_sample memory1",alerts_df)  
-                                     
-                    alerts_df_sample = alerts_df[((end_time - alerts_df["endTime"]).dt.total_seconds() / 60 < 30) | (alerts_df["TimeGenerated"]>=start_time) & (alerts_df["TimeGenerated"]<=end_time)]
-                    print("alerts_df_sample memory2",alerts_df_sample)
-                    alerts_df_sample["endTime"] = alerts_df_sample["endTime"].dt.strftime('%Y-%m-%d %H:%M')
-                    alerts_df_sample["TimeGenerated"] = alerts_df_sample["TimeGenerated"].dt.strftime('%Y-%m-%d %H:%M')
-                    
-                    # Filter based on appCI
-                    alerts_df_sample["AppCI_copy"] = alerts_df_sample["AppCI"].str.lower()
-                    alerts_df_sample["AppCI_copy"] = alerts_df_sample["AppCI_copy"].str.strip()
-                    alerts_df_sample = alerts_df_sample[alerts_df_sample["AppCI_copy"].isin(appCI)]
-                    
-                    print(alerts_df_sample)
-                    print("The Alerts df is ", len(alerts_df_sample))
-                    logsData["MemoryUtilization"] = alerts_df_sample.to_json()  
-                    return jsonify(logsData)
         # apmNumbers = filtersData(filter, "apmNumber")
         apmNumbers = getFiltersFromCache(filter, "apmNumber")  
         
@@ -621,8 +536,7 @@ def azureServerMetricsMemoryDatalog():
     #print(memory_df)
     print("Memory API: "+ str(s)+" - "+str(e))
 
-    return jsonify(logsData)
-
+    return {"status": 200, "Data": logsData.pop("MemoryUtilization"), "meta": logsData, "error": None}
 
 @infrastructure_bp.route('/api/azureServerMetricsFileshareDatalogs', methods=["POST"])
 def azureServerMetricsFileshareDatalog():
@@ -651,7 +565,7 @@ def azureServerMetricsFileshareDatalog():
             logsData[i] = fileshare_df[i]
     
     print("azureServerMetricsFileshareDatalogs API: "+ str(start)+" - "+str(end))
-    return jsonify(logsData)
+    return {"status": 200, "Data": logsData.pop("FileshareUtilization"), "meta": logsData, "error": None}
 
 @infrastructure_bp.route('/api/azureServerMetricsDiskDatalogs', methods=["POST"])
 def azureServerMetricsDiskDatalog():
@@ -673,50 +587,6 @@ def azureServerMetricsDiskDatalog():
     logsData = dict()
 
     if(serverName=="" and ("subRg" not in filter)):
-        if aggregateBool=="forGAC" :
-            if os.path.exists(alertInfraListJsonPath):
-                print("Aggregate")
-                #print("The os path exists")
-                with open(alertInfraListJsonPath, "r") as json_file: 
-                    
-                    alerts_df = json_file.read()
-                    alerts_df = json.loads(alerts_df)
-                    # print(type(alerts_df["Data"]))
-                    alerts_df = pandas.read_json(alerts_df["Disk Data"])
-                    alerts_df["TimeGenerated"] = pandas.to_datetime(alerts_df["TimeGenerated"], errors='coerce')
-                    # print(start_time, end_time)
-                    start_time = datetime.strptime(start_time, "%Y-%m-%d %I:%M:%S %p")
-                    start_time = datetime.strftime(start_time, "%Y-%m-%d %H:%M:%S")
-                    start_time = pandas.to_datetime(start_time)
-                    
-                    end_time = datetime.strptime(end_time, "%Y-%m-%d %I:%M:%S %p")
-                    end_time = datetime.strftime(end_time, "%Y-%m-%d %H:%M:%S")
-                    end_time = pandas.to_datetime(end_time)
-                    print("THe start time adn end time for disk are", start_time, end_time)
-                    appCI = getFiltersFromCache(filter, "appCI")
-                    appCI = [i.strip() for i in appCI.replace("'","").split(",")]
-                    # print(appCI)
-                    alerts_df["endTime"] = pandas.to_datetime(alerts_df["endTime"], errors='coerce')
-                    
-
-                    print("alerts_df_sample disk1",alerts_df)
-                    
-                    alerts_df_sample = alerts_df[((end_time - alerts_df["endTime"]).dt.total_seconds() / 60 < 30) | (alerts_df["TimeGenerated"]>=start_time) & (alerts_df["TimeGenerated"]<=end_time)]
-                    
-                    print("alerts_df_sample disk2",alerts_df_sample)
-
-                    alerts_df_sample["endTime"] = alerts_df_sample["endTime"].dt.strftime('%Y-%m-%d %H:%M')
-                    alerts_df_sample["TimeGenerated"] = alerts_df_sample["TimeGenerated"].dt.strftime('%Y-%m-%d %H:%M')
-                    
-                    # Filter based on appCI
-                    alerts_df_sample["AppCI_copy"] = alerts_df_sample["AppCI"].str.lower()
-                    alerts_df_sample["AppCI_copy"] = alerts_df_sample["AppCI_copy"].str.strip()
-                    alerts_df_sample = alerts_df_sample[alerts_df_sample["AppCI_copy"].isin(appCI)]
-                    
-                    print(alerts_df_sample)
-                    print("The Alerts df is ", len(alerts_df_sample))
-                    logsData["DiskUtilization"] = alerts_df_sample.to_json()  
-                    return jsonify(logsData)
         # apmNumbers = filtersData(filter, "apmNumber")
         apmNumbers = getFiltersFromCache(filter, "apmNumber")  
         
@@ -780,4 +650,4 @@ def azureServerMetricsDiskDatalog():
     #print(disk_df)
     print("Disk API: "+ str(start)+" - "+str(end))
 
-    return jsonify(logsData)
+    return {"status": 200, "Data": logsData.pop("DiskUtilization"), "meta": logsData, "error": None}

@@ -268,7 +268,7 @@ export default function AlertsCreation({userProfileData, appInsights, backendSes
             body: JSON.stringify(params)
         }).then((response)=>response.json())
         .then((data)=>{
-            var tempData = JSON.parse(data["metaData"])
+            var tempData = JSON.parse(data["Data"])
             // console.log(tempData)
             if(Object.keys(tempData).length>0){
                 var temp = []
@@ -316,7 +316,7 @@ export default function AlertsCreation({userProfileData, appInsights, backendSes
             body: JSON.stringify(params)
         }).then((response)=>response.json())
         .then((data)=>{
-            var tempData = JSON.parse(data["metaData"])
+            var tempData = JSON.parse(data["Data"])
             // console.log(tempData)
             if(Object.keys(tempData).length>0){
                 var temp = []
@@ -357,7 +357,7 @@ export default function AlertsCreation({userProfileData, appInsights, backendSes
         })
         .then((response)=>response.json())
         .then((data)=>{
-            var tempData = JSON.parse(data["metaData"])
+            var tempData = JSON.parse(data["Data"])
             if(Object.keys(tempData).length>0){
                 var temp = []
                 Object.values(tempData["Server Name"]).map((val,index)=>{
@@ -504,7 +504,7 @@ export default function AlertsCreation({userProfileData, appInsights, backendSes
           const data = await response.json();
     
           // Extract non-empty emails
-          const emails = data.emailAddress
+          const emails = data.Data.emailAddress
             .map(item => item.Emails)
             .filter(email => email.trim() !== "");
     

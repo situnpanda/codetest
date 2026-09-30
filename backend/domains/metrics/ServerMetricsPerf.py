@@ -185,7 +185,7 @@ Server_Metrics_Perf
         result_json = df_res.to_json()
         del df_res
         gc.collect()
-        return {"Data": result_json, "status": 200, "Time Taken by Sql DB": timeTakenBySqlQuery_toReadServerList, "Time Taken by Kql ADX": timeTakenByKqlQuery_toReadPerfData}
+        return {"status": 200, "Data": result_json, "meta": {"Time Taken by Sql DB": timeTakenBySqlQuery_toReadServerList, "Time Taken by Kql ADX": timeTakenByKqlQuery_toReadPerfData}, "error": None}
     
     except Exception as ex:
         # Existing error handling

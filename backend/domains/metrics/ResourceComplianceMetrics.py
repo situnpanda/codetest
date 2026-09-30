@@ -119,7 +119,7 @@ def get_infra_events():
                 Status
             """
         else:
-            return jsonify({"events": []}), 200
+            return {"status": 200, "Data": [], "meta": {}, "error": None}, 200
  
         df = readFromADX(query)
 
@@ -160,7 +160,7 @@ def get_infra_events():
                     "collection": row.get("Collection")
                 })
 
-        return jsonify({"events": events}), 200
+        return {"status": 200, "Data": events, "meta": {}, "error": None}, 200
  
     except Exception as ex:
         # Existing error handling

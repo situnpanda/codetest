@@ -14,6 +14,8 @@ Usage:
 """
 
 import logging
+import os
+import socket
 import time
 import functools
 import traceback as tb
@@ -36,8 +38,24 @@ except ImportError:
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-ENVIRONMENT = ""
-ENVIRONMENT = ENVIRONMENT or "development"
+# Resolve environment from the host, mirroring frontend environment.js.
+ENV_BY_HOST = {
+    "itelemetry.wu2.cloud.providence.org": "production",
+    "itelemetry.testwu2.cloud.providence.org": "staging",
+    "itelemetry.devwu2.cloud.providence.org": "development",
+}
+
+
+def _resolve_environment():
+    # Explicit override wins (e.g. set in k8s manifests).
+    env = os.getenv("ENVIRONMENT")
+    if env:
+        return env
+    host = socket.gethostname().lower()
+    return ENV_BY_HOST.get(host, "development")
+
+
+ENVIRONMENT = _resolve_environment()
 SERVICE_NAME = "iTelemetry-Backend"
 _initialized = False
 _logger_provider = None

@@ -589,7 +589,7 @@ export default function ItelemetrySummary({appInsights, globalFilterData}) {
         .then((response)=>response.json())
         .then((data)=>{
             //console.log(JSON.parse(data["appOnboardingSummary"]))
-            var tempVar = JSON.parse(data["appOnboardingSummary"])
+            var tempVar = JSON.parse(data["Data"])
             if(Object.keys(tempVar).length>0){
               Object.keys(tempVar["Month Onboarded"]).map((key)=>{
                 var temp = "NIL"

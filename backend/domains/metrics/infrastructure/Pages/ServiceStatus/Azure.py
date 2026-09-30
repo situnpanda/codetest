@@ -5,6 +5,7 @@ import pytz
 from datetime import datetime, timedelta
 from shared.LogAnalytics import queryInLogAnalytics
 from flask import jsonify
+from shared.appinsights_logger import error_response
 
 def getGACQuery(timeGenerated, hostingType):
     # GACquery = f"""
@@ -276,10 +277,10 @@ def azureServiceStatus(serviceList, startTime, endTime, aggregate):
                 print("Exception in servicestatus azure execution: ",Ex )
                 info =exceptioninfo(Ex,azureServicesQuery)
                 insert_data(info)
-                return jsonify({'error':str(Ex)}),500      
+                return error_response(500, "Failed to fetch Azure service status", detail=info, exc=Ex)
         except Exception as Ex:
             print("Exception in connecting to crcamonitoring database: ",Ex )
             info =exceptioninfo(Ex)
             insert_data(info)
-            return jsonify({'error':str(Ex)}),500
+            return error_response(500, "Failed to connect to monitoring database", detail=info, exc=Ex)
             

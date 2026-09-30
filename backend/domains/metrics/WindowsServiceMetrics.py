@@ -306,7 +306,7 @@ def getServiceStatus(data={},results=[],lock=threading.Lock()):
         timeTakenByKqlQuery_toReadServicesData = (en2-st2).total_seconds()
         
         if(type=="api"):
-            return {"Data":df_res.to_json(),"status":200, "Time Taken by Sql DB to fetch  Services List":timeTakenBySqlQuery_toReadserviceList,"Time Taken by Kql to fetch Services Data":timeTakenByKqlQuery_toReadServicesData}
+            return {"status": 200, "Data": df_res.to_json(), "meta": {"Time Taken by Sql DB to fetch  Services List": timeTakenBySqlQuery_toReadserviceList, "Time Taken by Kql to fetch Services Data": timeTakenByKqlQuery_toReadServicesData}, "error": None}
         else:
             results.append(
                 {"Data":df_res,"status":200, "Time Taken by Sql DB to fetch Services List":timeTakenBySqlQuery_toReadserviceList,"Time Taken by Kql to fetch Services Data":timeTakenByKqlQuery_toReadServicesData}
@@ -400,7 +400,7 @@ def getUrlStatus(data = {},results=[],lock=threading.Lock()):
         timeTakenByKqlQuery_toReadUrlData = (en2-st2).total_seconds()
         
         if(type=="api"):
-            return {"Data":df_res.to_json(),"status":200, "Time Taken by Sql DB to fetch Url List":timeTakenBySqlQuery_toReadurlList,"Time Taken by Kql to fetch Url Data":timeTakenByKqlQuery_toReadUrlData}
+            return {"status": 200, "Data": df_res.to_json(), "meta": {"Time Taken by Sql DB to fetch Url List": timeTakenBySqlQuery_toReadurlList, "Time Taken by Kql to fetch Url Data": timeTakenByKqlQuery_toReadUrlData}, "error": None}
         else:
             results.append(
                 {"Data":df_res,"status":200, "Time Taken by Sql DB to fetch Url List":timeTakenBySqlQuery_toReadurlList,"Time Taken by Kql to fetch Url Data":timeTakenByKqlQuery_toReadUrlData}

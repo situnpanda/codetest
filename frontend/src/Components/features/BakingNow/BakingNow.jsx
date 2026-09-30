@@ -1584,7 +1584,7 @@ const BakingNow = ({ appInsights, preferredTZ, date }) => {
 
     const d = await r.json();
     console.log("The backup data is", d);
-    return (d.events || []).map((e, i) => {
+    return (d.Data || []).map((e, i) => {
       // console.log(`[Backup ${i}] RAW from backend:`, {
       //   server: e.serverName,
       //   startTime: e.startTime,
@@ -1623,7 +1623,7 @@ const BakingNow = ({ appInsights, preferredTZ, date }) => {
 
     const d = await r.json();
 
-    return (d.events || []).map((e, i) => {
+    return (d.Data || []).map((e, i) => {
       // console.log(`[Change ${i}] RAW from backend:`, {
       //   number: e.number,
       //   startTime: e.startTime,
@@ -1677,7 +1677,7 @@ const BakingNow = ({ appInsights, preferredTZ, date }) => {
 
     const d = await r.json();
 
-    return (d.events || []).map((e, i) => {
+    return (d.Data || []).map((e, i) => {
       // console.log(`[Major Incident ${i}] RAW from backend:`, {
       //   number: e.number,
       //   startTime: e.startTime,
@@ -1731,7 +1731,7 @@ const BakingNow = ({ appInsights, preferredTZ, date }) => {
       }
 
       const d = await r.json();
-      return (d.events || []).map((e, i) => {
+      return (d.Data || []).map((e, i) => {
         // Patch has date-only; prefer startTime, fallback to timestamp
         const parsedStart = e.startTime ? parseUTC(e.startTime) : (e.timestamp ? parseUTC(e.timestamp) : null);
         const status = e.patchStatus || e.status || "";

@@ -5,6 +5,7 @@ import numpy
 import pytz
 from datetime import datetime, timedelta
 from flask import jsonify
+from shared.appinsights_logger import error_response
 
 def onPremserviceStatus(serviceList, startTime, endTime, aggregate):
     df_onPremService = pandas.DataFrame()
@@ -76,12 +77,12 @@ def onPremserviceStatus(serviceList, startTime, endTime, aggregate):
                 print("Exception in ServiceStatus Onprem query execution: ",Ex )
                 info =exceptioninfo(Ex,onPremServicesQuery)
                 insert_data(info) 
-                return jsonify({'error':str(Ex)}),500    
+                return error_response(500, "Failed to fetch on-prem service status", detail=info, exc=Ex)
         except Exception as Ex:
             print("Exception in connecting to crcamonitoring database: ",Ex )
             info =exceptioninfo(Ex)
             insert_data(info)
-            return jsonify({'error':str(Ex)}),500
+            return error_response(500, "Failed to connect to monitoring database", detail=info, exc=Ex)
             
             
         

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy
 from shared.dataBase import connectToDw, queryDw, connectToDw_AADpwd,exceptioninfo,insert_data
 from flask import jsonify
+from shared.appinsights_logger import error_response
 
 def azureMemoryUtilization(aggregate, serverName_Cond, timeGenerated, subRg_Cond,threshold):
     #print(f"Threshold value: {threshold}")
@@ -38,10 +39,10 @@ def azureMemoryUtilization(aggregate, serverName_Cond, timeGenerated, subRg_Cond
             print("Exception in connecting to crcamonitoring database ",Ex )
             info =exceptioninfo(Ex)
             insert_data(info)
-            return jsonify({'error':str(Ex)}),500
+            return error_response(500, "Failed to connect to monitoring database", detail=info, exc=Ex)
     except Exception as Ex:
         print("Exception in Azure Memory Utilization: ",Ex )
         info =exceptioninfo(Ex,sqlQueryMemoryUtil)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to fetch Azure memory utilization", detail=info, exc=Ex)
         

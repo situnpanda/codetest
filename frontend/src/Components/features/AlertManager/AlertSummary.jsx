@@ -438,7 +438,7 @@ const AlertSummary = ({ date, setDate, userProfile, supportGroup, appInsights: a
 
         const res = await fetch(new URL(baseUrl + 'getOnboardingSummary'));
         const data = await res.json();
-        const parsed = JSON.parse(data.appOnboardingSummary);
+        const parsed = JSON.parse(data.Data);
         const onboarded = Object.values(parsed['Application Family'])
           .filter((_, i) => parsed.Status[i].toLowerCase() === 'onboarded');
 
@@ -456,7 +456,19 @@ const AlertSummary = ({ date, setDate, userProfile, supportGroup, appInsights: a
             filterType: 'dataFrame',
           }),
         });
-        const filters = await filtersRes.json();
+        const filtersJson = (await filtersRes.json()).Data;
+        // Backend returns a column-oriented pandas JSON string; convert to records.
+        const filtersParsed =
+          typeof filtersJson === 'string' ? JSON.parse(filtersJson) : filtersJson;
+        const columns = Object.keys(filtersParsed || {});
+        const rowIndices = columns.length ? Object.keys(filtersParsed[columns[0]] || {}) : [];
+        const filters = rowIndices.map((idx) => {
+          const record = {};
+          columns.forEach((col) => {
+            record[col] = filtersParsed[col][idx];
+          });
+          return record;
+        });
 
         const appCis = [...new Set(filters.map((i) => i.AppCI))].sort();
         const appFamilies = [...new Set(filters.map((i) => i.AppFamily))].sort();

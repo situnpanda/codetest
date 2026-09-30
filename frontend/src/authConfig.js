@@ -5,7 +5,7 @@ export const ssoConfig = {
     auth: {
         clientId: "b5da77da-5b7a-492e-a87f-9d19a636ced0",//"8cc30f46-11e8-44ce-9b4c-a390e819d3da",  // Replace with your Application (Client) ID
         authority: "https://login.microsoftonline.com/2e319086-9a26-46a3-865f-615bed576786", // Replace with your Directory (Tenant) ID and policy
-        redirectUri: "/applicationHealth?Name=All&Type=All", //"/applicationHealth?application='All'", // Replace with your redirect URI
+        redirectUri: "/", // Site root; resolves to the current origin (dev/test/prod). Registered as SPA redirect URI in Entra.
     },
     cache: {
         cacheLocation: "localStorage", // This configures where your cache will be stored

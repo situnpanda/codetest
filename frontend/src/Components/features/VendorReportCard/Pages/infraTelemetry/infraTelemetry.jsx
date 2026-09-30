@@ -200,10 +200,10 @@ function InfrastructureTelemetry(
       .then((response) => response.json())
       .then((data) =>{ 
         if(Object.keys(params).includes("subRg")){
-          setFilterData_SubRg(JSON.parse(data))
+          setFilterData_SubRg(JSON.parse(data.Data))
         }
         else{
-          setFilterData(data)
+          setFilterData(data.Data)
         }
         
       })
@@ -238,7 +238,7 @@ function InfrastructureTelemetry(
       .then((data) =>{ 
         // if(isEqualJson(currentFilterData,JSON.parse(params["filters"]))){
         //   //console.log("Changed")
-        setServerList(JSON.parse(data["ServerLogs"]))
+        setServerList(JSON.parse(data["Data"]))
         ////console.log(data)
         setLoading(prevLoading=>({
           ...prevLoading,
@@ -284,7 +284,7 @@ function InfrastructureTelemetry(
       .then((data) =>{ 
         // if(isEqualJson(currentFilterData,JSON.parse(params["filters"]))){
         //   //console.log("Changed")
-        setServerEnvironment(data)
+        setServerEnvironment(data.Data)
         ////console.log(data)
         setLoading(prevLoading=>({
           ...prevLoading,
@@ -344,14 +344,14 @@ function InfrastructureTelemetry(
         // if(isEqualJson(currentFilterData,JSON.parse(params["filters"]))){
         //   //console.log("Changed")
         if(aggregate=="yes"){
-          setWindowsEvent(data["windowsEventLogs"])
+          setWindowsEvent(data["Data"])
           setLoading(prevLoading=>({
             ...prevLoading,
             "windowsEvent" : false
           }));
         }
         else{
-          setWindowsEventLogs(JSON.parse(data["windowsEventLogs"]))
+          setWindowsEventLogs(JSON.parse(data["Data"]))
           setLoading(prevLoading=>({
             ...prevLoading,
             "windowsEventLogs" : false
@@ -418,7 +418,7 @@ function InfrastructureTelemetry(
       .then((data) =>{ 
         ////console.log(data)
         if(aggregate=="yes"){
-          setRebootEvent(data["vmRebootEvents"])
+          setRebootEvent(data["Data"])
           
           setLoading(prevLoading=>({
             ...prevLoading,
@@ -426,7 +426,7 @@ function InfrastructureTelemetry(
           })); 
         }
         else{
-          setRebootEventLogs(JSON.parse(data["vmRebootEvents"]))
+          setRebootEventLogs(JSON.parse(data["Data"]))
           setLoading(prevLoading=>({
             ...prevLoading,
             "rebootEventLogs" : false
@@ -519,7 +519,7 @@ function InfrastructureTelemetry(
       .then((data) =>{ 
 
           if(aggregate=="yes"){
-            if(Object.keys(JSON.parse(data["CpuUtilization"])).length==0){
+            if(Object.keys(JSON.parse(data["Data"])).length==0){
               
               setServerCpuUtilization({
                 "ServerName":{},
@@ -541,7 +541,7 @@ function InfrastructureTelemetry(
               }));
             }
             else{
-              var dataSet = JSON.parse(data["CpuUtilization"])
+              var dataSet = JSON.parse(data["Data"])
               setServerCpuUtilization(dataSet)
               if(Object.keys(dataSet["ServerName"]).length>0){
                 
@@ -571,7 +571,7 @@ function InfrastructureTelemetry(
             }
           }
           else{
-            setServerCpuUtilizationLogs(JSON.parse(data["CpuUtilization"]))
+            setServerCpuUtilizationLogs(JSON.parse(data["Data"]))
             setLoading(prevLoading=>({
               ...prevLoading,
               "serverCpuUtilizationLogs" : false
@@ -609,7 +609,7 @@ function InfrastructureTelemetry(
       .then((data) =>{ 
         
           if(aggregate=="yes"){
-            if(Object.keys(JSON.parse(data["CpuUtilization"])).length==0){
+            if(Object.keys(JSON.parse(data["Data"])).length==0){
               
               setServerCpuUtilization_SubRg({
                 "ServerName":{},
@@ -633,7 +633,7 @@ function InfrastructureTelemetry(
             }
             else{
 
-              var dataSet = JSON.parse(data["CpuUtilization"])
+              var dataSet = JSON.parse(data["Data"])
               setServerCpuUtilization_SubRg(dataSet)
               if(Object.keys(dataSet["ServerName"]).length>0){
                 
@@ -664,7 +664,7 @@ function InfrastructureTelemetry(
           }
           else{
 
-            setServerCpuUtilizationLogs_SubRg(JSON.parse(data["CpuUtilization"]))
+            setServerCpuUtilizationLogs_SubRg(JSON.parse(data["Data"]))
             setLoading_SubRg(prevLoading=>({
               ...prevLoading,
               "serverCpuUtilizationLogs" : false
@@ -757,7 +757,7 @@ function InfrastructureTelemetry(
       .then((data) =>{ 
         if(aggregate=="yes"){
 
-          if(Object.keys(JSON.parse(data["MemoryUtilization"])).length==0){
+          if(Object.keys(JSON.parse(data["Data"])).length==0){
             setServerMemoryUtilization({
               "ServerName":{},
               "SubscriptionId":{},
@@ -776,7 +776,7 @@ function InfrastructureTelemetry(
 
           }
           else{
-            var dataSet = JSON.parse(data["MemoryUtilization"])
+            var dataSet = JSON.parse(data["Data"])
             setServerMemoryUtilization(dataSet)
             if(Object.keys(dataSet["ServerName"]).length>0){
               setServerNameFilterMemory(Object.values(dataSet["ServerName"])[0])
@@ -803,7 +803,7 @@ function InfrastructureTelemetry(
         }
         else{
 
-          setServerMemoryUtilizationLogs(JSON.parse(data["MemoryUtilization"]))
+          setServerMemoryUtilizationLogs(JSON.parse(data["Data"]))
           setLoading(prevLoading=>({
             ...prevLoading,
             "serverMemoryUtilizationLogs" : false
@@ -842,7 +842,7 @@ function InfrastructureTelemetry(
       .then((data) =>{ 
         if(aggregate=="yes"){
 
-          if(Object.keys(JSON.parse(data["MemoryUtilization"])).length==0){
+          if(Object.keys(JSON.parse(data["Data"])).length==0){
             setServerMemoryUtilization_SubRg({
               "ServerName":{},
               "SubscriptionId":{},
@@ -862,7 +862,7 @@ function InfrastructureTelemetry(
 
           }
           else{
-            var dataSet = JSON.parse(data["MemoryUtilization"])
+            var dataSet = JSON.parse(data["Data"])
             setServerMemoryUtilization_SubRg(dataSet)
             if(Object.keys(dataSet["ServerName"]).length>0){
 
@@ -892,7 +892,7 @@ function InfrastructureTelemetry(
         }
         else{
 
-          setServerMemoryUtilizationLogs_SubRg(JSON.parse(data["MemoryUtilization"]))
+          setServerMemoryUtilizationLogs_SubRg(JSON.parse(data["Data"]))
           
           setLoading_SubRg(prevLoading=>({
             ...prevLoading,
@@ -988,7 +988,7 @@ function InfrastructureTelemetry(
         if(aggregate=="yes"){
           // //console.log("Disk Aggregate")
           // //console.log(JSON.parse(data["DiskUtilization"]))
-          if(Object.keys(JSON.parse(data["DiskUtilization"])).length==0){
+          if(Object.keys(JSON.parse(data["Data"])).length==0){
             setServerDiskUtilization({
               "ServerName":{},
               "SubscriptionId":{},
@@ -996,7 +996,7 @@ function InfrastructureTelemetry(
             })
           }
           else{
-            setServerDiskUtilization(JSON.parse(data["DiskUtilization"]))
+            setServerDiskUtilization(JSON.parse(data["Data"]))
           }
           
           setLoading(prevLoading=>({
@@ -1008,7 +1008,7 @@ function InfrastructureTelemetry(
         else{
           // //console.log("Disk Logs")
           // //console.log(JSON.parse(data["DiskUtilization"]))
-          setServerDiskUtilizationLogs(JSON.parse(data["DiskUtilization"]))
+          setServerDiskUtilizationLogs(JSON.parse(data["Data"]))
           setLoading(prevLoading=>({
             ...prevLoading,
             "serverDiskUtilizationLogs" : false
@@ -1047,7 +1047,7 @@ function InfrastructureTelemetry(
         if(aggregate=="yes"){
           // //console.log("Disk Aggregate")
           // //console.log(JSON.parse(data["DiskUtilization"]))
-          if(Object.keys(JSON.parse(data["DiskUtilization"])).length==0){
+          if(Object.keys(JSON.parse(data["Data"])).length==0){
             setServerDiskUtilization_SubRg({
               "ServerName":{},
               "SubscriptionId":{},
@@ -1055,7 +1055,7 @@ function InfrastructureTelemetry(
             })
           }
           else{
-            setServerDiskUtilization_SubRg(JSON.parse(data["DiskUtilization"]))
+            setServerDiskUtilization_SubRg(JSON.parse(data["Data"]))
           }
           
           setLoading_SubRg(prevLoading=>({
@@ -1067,7 +1067,7 @@ function InfrastructureTelemetry(
         else{
           // //console.log("Disk Logs")
           // //console.log(JSON.parse(data["DiskUtilization"]))
-          setServerDiskUtilizationLogs_SubRg(JSON.parse(data["DiskUtilization"]))
+          setServerDiskUtilizationLogs_SubRg(JSON.parse(data["Data"]))
           setLoading_SubRg(prevLoading=>({
             ...prevLoading,
             "serverDiskUtilizationLogs" : false

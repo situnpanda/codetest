@@ -77,13 +77,13 @@ def getServerStatus():
         df = readFromADX(query)
 
         if df.empty:
-            return {"status": 200, "Data": json.dumps({})}
+            return {"status": 200, "Data": json.dumps({}), "meta": {}, "error": None}
 
         # Ensure column types match legacy format
         df["TimeGenerated"] = pd.to_datetime(df["TimeGenerated"]).dt.strftime("%Y-%m-%d %H:%M:%S")
 
         result = df.to_json()
-        return {"status": 200, "Data": result}
+        return {"status": 200, "Data": result, "meta": {}, "error": None}
 
     except Exception as ex:
         return error_response(500, "Failed to fetch seasonal pattern", detail=str(ex), exc=ex)
@@ -116,7 +116,7 @@ def getPatternAnalysis():
         servers = _sanitize_names(body.get("servers"))
 
         if not servers:
-            return {"status": 200, "Data": json.dumps([])}
+            return {"status": 200, "Data": json.dumps([]), "meta": {}, "error": None}
 
         server_in_list = ", ".join([f'"{s}"' for s in servers])
 
@@ -167,7 +167,7 @@ def getPatternAnalysis():
             df = readFromADX(query)
             records = _records_from_pattern_df(df, include_server=False)
 
-        return {"status": 200, "Data": json.dumps(records, default=str)}
+        return {"status": 200, "Data": json.dumps(records, default=str), "meta": {}, "error": None}
 
     except Exception as ex:
         return error_response(500, "Failed to fetch pattern analysis", detail=str(ex), exc=ex)

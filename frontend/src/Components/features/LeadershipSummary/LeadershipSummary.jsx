@@ -209,7 +209,7 @@ export default function SummaryOverview({ preferredTZ, globalFilterData }) {
       if (!response.ok) throw new Error('Failed to fetch application health summary');
 
       const data = await response.json();
-      const appSummaryRaw = JSON.parse(data["Application Summary"]);
+      const appSummaryRaw = JSON.parse(data["Data"]);
 
       if (!appSummaryRaw || Object.keys(appSummaryRaw).length === 0) {
         return {};
@@ -291,8 +291,8 @@ export default function SummaryOverview({ preferredTZ, globalFilterData }) {
         })
       ]);
 
-      const changeEvents = changeRes.ok ? (await changeRes.json()).events || [] : [];
-      const incidentEvents = incidentRes.ok ? (await incidentRes.json()).events || [] : [];
+      const changeEvents = changeRes.ok ? (await changeRes.json()).Data || [] : [];
+      const incidentEvents = incidentRes.ok ? (await incidentRes.json()).Data || [] : [];
 
       // Convert timestamps using preferredTZ conversion utility
       const convertedChangeEvents = convertTimeToPreferredTZ({ events: changeEvents });

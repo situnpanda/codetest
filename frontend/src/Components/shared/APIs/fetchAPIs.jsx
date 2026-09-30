@@ -104,27 +104,15 @@ export async function fetchCrowdstrikeConnectionData(params){
 
     var url = new URL(baseUrl + 'crowdstrikeMetrics/getConnectionData');
 
-    const resPromise = await fetch(url,{
+    const data = await requestJson(url, {
         method:'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(params)
     });
-    if(!resPromise.ok){
-        console.log("Not ok")
-        throw new Error("API Failed to process")
-    }
-    const data = await resPromise.json()
-    if(data["status"]==200){
-        console.log("Passed")
-        // Backend returns Data as an object (not a JSON string).
-        return data["Data"]
-    }
-    else{
-        console.log("API Failed")
-        throw new Error("API Failed : "+data["Data"])
-    }
+    // Backend returns Data as an object (not a JSON string).
+    return data["Data"]
 }
 
 export async function fetchFileStorageMetrics_fromADX(params){
@@ -180,7 +168,7 @@ export async function fetchMoxaMetricsWithLatest(params){
     });
     return {
         data: JSON.parse(data["Data"]),
-        latest: data["Latest"] ? JSON.parse(data["Latest"]) : {}
+        latest: (data["meta"] && data["meta"]["Latest"]) ? JSON.parse(data["meta"]["Latest"]) : {}
     }
 }
 

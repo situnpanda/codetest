@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from flask import Flask  # noqa: E402
 from flask_cors import CORS  # noqa: E402
 
-from domains.chatops.ChatOps import chatOps  # noqa: E402
+from apis.chatops import chatOps  # noqa: E402
 
 
 def create_app():

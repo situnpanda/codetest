@@ -5,6 +5,7 @@ import pytz
 from datetime import datetime, timedelta
 from shared.LogAnalytics import queryInLogAnalytics
 from flask import jsonify
+from shared.appinsights_logger import error_response
 
 def azureDbMetics(aggregate,startTime, endTime, appCI):
     dbMetrics = pandas.DataFrame()
@@ -78,14 +79,12 @@ def azureDbMetics(aggregate,startTime, endTime, appCI):
             return dbMetrics
         except Exception as Ex:
             print("Exception in DB Metrics azure execution: ",Ex )
-            raise Exception("Exception in azure DB Metrics execution:"+Ex)
             info =exceptioninfo(Ex,azureDbMetricsQuery)
             insert_data(info)
-            return jsonify({'error':str(Ex)}),500      
+            return error_response(500, "Failed to fetch Azure database metrics", detail=info, exc=Ex)      
     except Exception as Ex:
         print("Exception in connecting to crcamonitoring database: ",Ex )
-        raise Exception("Exception in connecting to crcamonitoring database for azure DB Metrics execution:"+Ex)
         info =exceptioninfo(Ex)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to connect to monitoring database", detail=info, exc=Ex)
             

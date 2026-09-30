@@ -12,7 +12,7 @@ frontend/
     ├── main.jsx           App bootstrap
     ├── App.jsx            Root component / routing
     ├── authConfig.js      MSAL (Azure AD) configuration
-    ├── environment.js     API base URL (http://127.0.0.1:5000/api/)
+    ├── environment.js     API base URL (same-origin /api/ when hosted; 127.0.0.1:5000 locally)
     └── Components/
         ├── features/      One folder per feature/domain UI
         ├── shared/        Reusable UI components + API clients

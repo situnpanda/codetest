@@ -102,7 +102,7 @@ export default function AppValidation({ userProfileData, preferredTZ, appInsight
     fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) })
       .then(response => { if (!response.ok) throw new Error('Non-200 response'); return response.json(); })
       .then(data => { 
-        var parsed = JSON.parse(data.appValidation);
+        var parsed = JSON.parse(data.Data);
         if (parsed['TimeGenerated']) {
           parsed['TimeGenerated'] = Object.fromEntries(
             Object.entries(parsed['TimeGenerated']).map(([key, value]) => [key, dayjs(value, 'YYYY-MM-DD hh:mm:ss A').format('YYYY-MM-DD HH:mm:ss')])
@@ -186,7 +186,7 @@ export default function AppValidation({ userProfileData, preferredTZ, appInsight
           
           if (wellskyRes.status === 201) {
             var wellskyData = await wellskyRes.json();
-            var wellskyState = wellskyData?.value?.[0]?.State;
+            var wellskyState = JSON.parse(wellskyData?.Data || '{}')?.value?.[0]?.State;
             if (wellskyState === 'Pending') { pendingCount += wellskyCIs.length; } else { successCount += wellskyCIs.length; }
           } else {
             failCount += wellskyCIs.length;
@@ -209,7 +209,7 @@ export default function AppValidation({ userProfileData, preferredTZ, appInsight
           
           if (ariaRes.status === 201) {
             var ariaData = await ariaRes.json();
-            var ariaState = ariaData?.value?.[0]?.State;
+            var ariaState = JSON.parse(ariaData?.Data || '{}')?.value?.[0]?.State;
             if (ariaState === 'Pending') { pendingCount += ariaCIs.length; } else { successCount += ariaCIs.length; }
           } else {
             failCount += ariaCIs.length;
@@ -291,7 +291,7 @@ export default function AppValidation({ userProfileData, preferredTZ, appInsight
       var response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aggregate: 'no', appCI: appCI }) });
       if (!response.ok) throw new Error('Failed to fetch drilldown data');
       var data = await response.json();
-      var parsed = JSON.parse(data.appValidation);
+      var parsed = JSON.parse(data.Data);
       if (parsed['TimeGenerated']) {
         parsed['TimeGenerated'] = Object.fromEntries(
           Object.entries(parsed['TimeGenerated']).map(([key, value]) => [key, dayjs(value, 'YYYY-MM-DD hh:mm:ss A').format('YYYY-MM-DD HH:mm:ss')])

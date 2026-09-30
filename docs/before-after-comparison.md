@@ -1,6 +1,6 @@
 # iTelemetry Repo Before vs After
 
-This document compares the legacy CRCA-Services layout with the iTelemetry v3 target layout across four areas:
+This document compares the legacy CRCA-Services layout with the iTelemetry target layout across four areas:
 
 1. Branching strategy
 2. Environments
@@ -11,7 +11,7 @@ The "before" state below reflects the legacy baseline requested for this compari
 
 ## Executive comparison
 
-| Area | Before: CRCA-Services baseline | After: iTelemetry v3 target | Why the after state is better |
+| Area | Before: CRCA-Services baseline | After: iTelemetry target | Why the after state is better |
 | ---- | ------------------------------ | --------------------------- | ----------------------------- |
 | Branching strategy | No clearly enforced promotion model; branch usage is effectively ad hoc in the legacy baseline | GitLab Flow with `feature/*` -> `main` -> `staging` -> `production`, plus a dedicated GitOps `helm` branch | Safer promotions, traceable releases, cleaner rollback, and less environment drift |
 | Environments | `production` and `staging` only | `development/test`, `staging`, and `production` | Earlier validation, lower release risk, better isolation for experiments and integration work |
@@ -150,7 +150,7 @@ flowchart LR
 
 ### Comparison table
 
-| Before: CRCA-Services | After: iTelemetry v3 | Why the after state is better |
+| Before: CRCA-Services | After: iTelemetry | Why the after state is better |
 | --------------------- | -------------------- | ----------------------------- |
 | Large mixed repository with legacy CRA client, backend, static assets, pipelines, and docs intertwined | Clear top-level separation into `backend`, `frontend`, `jobs`, `tests`, and `docs` | Faster onboarding and less cognitive load when locating code |
 | Backend responsibilities spread broadly across routes, modules, utilities, and batch scripts | Backend responsibilities split into `apis`, `domains`, and `shared` | Easier to reason about dependencies and change boundaries |
@@ -194,11 +194,11 @@ CRCA-Services/
 `-- FOLDER_STRUCTURE.txt
 ```
 
-### After diagram: v3 repo shape
+### After diagram: iTelemetry repo shape
 
 ```mermaid
 flowchart TB
-    Repo[iTelemetry v3]
+    Repo[iTelemetry]
     Repo --> Backend[backend]
     Repo --> Frontend[frontend]
     Repo --> Jobs[jobs]
@@ -214,7 +214,7 @@ flowchart TB
 ### After folder structure depiction
 
 ```text
-itelemetry-v3/
+itelemetry/
 |-- backend/
 |   |-- main.py
 |   |-- apis/
@@ -235,7 +235,7 @@ itelemetry-v3/
 `-- docs/
 ```
 
-### Why the v3 structure is easier to split into microservices
+### Why the iTelemetry structure is easier to split into microservices
 
 ```mermaid
 flowchart LR
@@ -265,4 +265,4 @@ flowchart LR
 
 ## Summary
 
-The legacy CRCA-Services baseline is best described as VM-oriented, environment-limited, and structurally harder to evolve. The iTelemetry v3 target state improves that by introducing GitLab Flow, a `development/test` stage before staging and production, AKS-based runtime for the frontend and backend, and a domain-oriented folder structure that is deliberately aligned for future microservice extraction.
+The legacy CRCA-Services baseline is best described as VM-oriented, environment-limited, and structurally harder to evolve. The iTelemetry target state improves that by introducing GitLab Flow, a `development/test` stage before staging and production, AKS-based runtime for the frontend and backend, and a domain-oriented folder structure that is deliberately aligned for future microservice extraction.

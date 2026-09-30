@@ -69,7 +69,7 @@ export default function ComplianceTelemetry() {
       .then((data) =>{ 
         //console.log("Server List")
         //console.log(JSON.parse(data["tagComplianceData"]))
-        setComplianceData(JSON.parse(data["tagComplianceData"]))
+        setComplianceData(JSON.parse(data["Data"]))
         //console.log(Object.keys(JSON.parse(data)).length)
         //console.log(JSON.parse(data)["name"])
         setLoading(prevLoading=>({

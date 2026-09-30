@@ -152,7 +152,7 @@ export default function CustomStepper({userProfileData, appInsights, backendSess
         })
         .then((data) => {
           // Assuming the response contains monthly values and historical data
-          const { g, tableData } = data;
+          const { g, tableData } = data.Data;
     
           // Update the state with the fetched data
           setHistoricalData(tableData); // Create this state to hold historical data
@@ -341,7 +341,7 @@ export default function CustomStepper({userProfileData, appInsights, backendSess
     try {
       const response = await fetch(baseUrl + 'getHistoricalDataForAllAppFamilies');
       const data = await response.json();
-      setHistoricalDataForAllAppFamily(data.tableData);
+      setHistoricalDataForAllAppFamily(data.Data.tableData);
       console.log("Fetch historical data")
     } catch (error) {
       console.error("Error fetching data:", error);

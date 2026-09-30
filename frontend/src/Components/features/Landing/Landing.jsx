@@ -214,7 +214,7 @@ function LandingPage() {
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
-        var incidents = JSON.parse(data["incidents"])
+        var incidents = JSON.parse(data["Data"])
         //console.log(changeRequest)
         for(var i=0;i<Object.keys(incidents["Number"]).length;i++){
           var row = createData(incidents["AppCI"][i],incidents["Number"][i], incidents["Status"][i], incidents["StartDateTime"][i], incidents["ShortDescription"][i], incidents["EndDateTime"][i])
@@ -243,7 +243,7 @@ function LandingPage() {
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
-        var changeRequest = JSON.parse(data["changeRequests"])
+        var changeRequest = JSON.parse(data["Data"])
         for(var i=0;i<Object.keys(changeRequest["Number"]).length;i++){
           var row = createData(changeRequest["AppCI"][i],changeRequest["Number"][i], changeRequest["Status"][i], changeRequest["StartDateTime"][i], changeRequest["ShortDescription"][i], changeRequest["EndDateTime"][i])
           console.log("In ChangeRequests")
@@ -272,7 +272,7 @@ function LandingPage() {
       .then((response) => response.json())
       .then((data) => {
         //setLoading(false)
-        var hospitalList_data = JSON.parse(data["hospitalList"])        
+        var hospitalList_data = JSON.parse(data["Data"])        
         var regionToHospital={}
         for(var i=0;i<Object.keys(hospitalList_data["Region"]).length;i++){
           if(hospitalList_data["Region"][i] in regionToHospital){

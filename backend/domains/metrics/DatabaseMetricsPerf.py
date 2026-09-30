@@ -151,7 +151,7 @@ def getDatabasePerf(data={}):
             en2 = datetime.now()
             timeTakenByKqlQuery_toReadPerfData = (en2-st2).total_seconds()
 
-        return {"Data":df_res.to_json(),"status":200, "Time Taken by Sql DB":timeTakenBySqlQuery_toReadDatabaseList,"Time Taken by Kql ADX":timeTakenByKqlQuery_toReadPerfData}
+        return {"status": 200, "Data": df_res.to_json(), "meta": {"Time Taken by Sql DB": timeTakenBySqlQuery_toReadDatabaseList, "Time Taken by Kql ADX": timeTakenByKqlQuery_toReadPerfData}, "error": None}
     
     except Exception as ex:
         # Existing error handling

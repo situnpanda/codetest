@@ -5,6 +5,7 @@ import pytz
 from datetime import datetime, timedelta
 from shared.LogAnalytics import queryInLogAnalytics
 from flask import jsonify
+from shared.appinsights_logger import error_response
 from domains.metrics.infrastructure.Pages.ServiceStatus.Azure import processDataFroDurationServices
 
 def urlStatus(connectionString, apmNumbers, startTime, endTime, aggregate):
@@ -163,9 +164,9 @@ def urlStatus(connectionString, apmNumbers, startTime, endTime, aggregate):
             print("Exception in URL's query: ",Ex )
             info =exceptioninfo(Ex,logAnalyticsQuery)
             insert_data(info)
-            return jsonify({'error':str(Ex)}),500
+            return error_response(500, "Failed to fetch URL service status", detail=info, exc=Ex)
     except Exception as Ex:
         print("Exception in URL's List query: ",Ex )
         info =exceptioninfo(Ex,urlApiListQuery)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to fetch URL API list", detail=info, exc=Ex)

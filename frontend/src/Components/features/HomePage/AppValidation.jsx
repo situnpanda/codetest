@@ -378,7 +378,7 @@ function ValidationDrilldown({date,globalFilterChoice, globalFilterData, appInsi
         })
         .then((data) => {
             console.log("Fetched Data APPPP VALIDATIONNNN :", data);
-            setAppValidation(convertTimeToPreferredTZ(JSON.parse(data['appValidation'])))
+            setAppValidation(convertTimeToPreferredTZ(JSON.parse(data['Data'])))
             console.log("vaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: ",appValidationData)
             setLoading(prev => ({
                 ...prev,

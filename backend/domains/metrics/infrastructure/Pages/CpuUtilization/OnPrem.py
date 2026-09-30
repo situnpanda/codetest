@@ -2,6 +2,7 @@ import pandas as pd
 import numpy
 from shared.dataBase import connectToDw_SqlServerPwdScom, queryDw, exceptioninfo,insert_data, connectToDw_AADpwd
 from flask import jsonify
+from shared.appinsights_logger import error_response
 
 def onPremCpuUtilization(aggregate, serverName_Cond, timeGenerated,subRg_Cond, threshold):
     #print(f"Threshold value: {threshold}")
@@ -132,9 +133,9 @@ def onPremCpuUtilization(aggregate, serverName_Cond, timeGenerated,subRg_Cond, t
             print("Exception Connecting to db for Azure CPU Utilization: ",Ex)
             info = exceptioninfo(Ex)
             insert_data(info)
-            return jsonify({'error':str(Ex)}),500
+            return error_response(500, "Failed to connect to monitoring database", detail=info, exc=Ex)
     except Exception as Ex:
         print("Exception in Azure CPU Utilization: ",Ex )
         info =exceptioninfo(Ex,sqlQueryCpuUtil)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500
+        return error_response(500, "Failed to fetch CPU utilization", detail=info, exc=Ex)

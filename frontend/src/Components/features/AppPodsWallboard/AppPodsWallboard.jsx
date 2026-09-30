@@ -464,7 +464,7 @@ export default function PodsWallboard({ backendSessionToken, hospitalInformation
         body: JSON.stringify({ hours, eventType: 'Major Incident' })
       });
      
-      const incidentEvents = incidentRes.ok ? (await incidentRes.json()).events || [] : [];
+      const incidentEvents = incidentRes.ok ? (await incidentRes.json()).Data || [] : [];
      
       console.log('Fetched incident events:', incidentEvents);
 
@@ -474,7 +474,7 @@ export default function PodsWallboard({ backendSessionToken, hospitalInformation
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hours, eventType: 'Service Health' })
       });
-      const serviceHealthEvents = serviceHealthRes.ok ? (await serviceHealthRes.json()).events || [] : [];
+      const serviceHealthEvents = serviceHealthRes.ok ? (await serviceHealthRes.json()).Data || [] : [];
 
       return {
         incidentEvents,
@@ -552,7 +552,7 @@ export default function PodsWallboard({ backendSessionToken, hospitalInformation
       if (!response.ok) throw new Error('Failed to fetch application data');
  
       var data = await response.json();
-      var appSummaryRaw = JSON.parse(data["Application Summary"]);
+      var appSummaryRaw = JSON.parse(data["Data"]);
  
       if (!appSummaryRaw || Object.keys(appSummaryRaw).length === 0) {
         if (isInitialLoad) {

@@ -302,7 +302,7 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
           });
           const data = await response.json();
           console.log("Network Server Count by App CI:", data);
-          setNetworkMetricsServerCounts(data.data || []);
+          setNetworkMetricsServerCounts(data.Data || []);
         } catch (error) {
           console.error("Error fetching network server count by App CI:", error);
         } finally {
@@ -407,9 +407,9 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
       })
       .then((response)=>response.json())
       .then((data)=>{
-        if(Object.keys(JSON.parse(data["Application Summary"])).length>0){
-          console.log(JSON.parse(data["Application Summary"]))
-          setApplicationHealthSummary(JSON.parse(data["Application Summary"]))
+        if(Object.keys(JSON.parse(data["Data"])).length>0){
+          console.log(JSON.parse(data["Data"]))
+          setApplicationHealthSummary(JSON.parse(data["Data"]))
         }
       })
       .catch((error) =>{

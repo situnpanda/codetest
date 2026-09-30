@@ -217,11 +217,12 @@ function App({msalInstance, appInsights}) {
       //setUserSupportGroups(updatedSupportGroups);
       const result = await response.json();
     
-    // Handle the new response format
-    if (result.supportGroups && result.appValidation !== undefined) {
-      setUserSupportGroups(result.supportGroups);
-      setAppValidationAccess(result.appValidation || "NoAccess");
-      setChatOpsAccess(result.chatOpsAccess || "NoAccess");
+    // Handle the uniform envelope: payload is under result.Data
+    const payload = (result && result.Data) ? result.Data : {};
+    if (payload.supportGroups && payload.appValidation !== undefined) {
+      setUserSupportGroups(payload.supportGroups);
+      setAppValidationAccess(payload.appValidation || "NoAccess");
+      setChatOpsAccess(payload.chatOpsAccess || "NoAccess");
     } 
   
     } catch (error) {

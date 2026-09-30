@@ -266,7 +266,7 @@ export default function OnboardedApplicationdata({userProfileData, appInsights})
         .then((response)=>response.json())
         .then((data)=>{
             //console.log(JSON.parse(data["appOnboardingSummary"]))
-            var tempVar = JSON.parse(data["appOnboardingSummary"])
+            var tempVar = JSON.parse(data["Data"])
             var appOnboarded = Object.values(tempVar["Application Family"]).filter((value, index)=>tempVar["Status"][index].toLowerCase()=="onboarded")
             setApplicationOnboarded(appOnboarded)
             //console.log(appOnboarded)
@@ -314,7 +314,7 @@ export default function OnboardedApplicationdata({userProfileData, appInsights})
         .then((data) =>{ 
             //console.log()
             if(Object.keys(serverList).length<=1){
-                var tempVar = JSON.parse(data["ServerLogs"])
+                var tempVar = JSON.parse(data["Data"])
                 console.log(tempVar)
                 updateServerList(tempVar)
             }
@@ -339,13 +339,13 @@ export default function OnboardedApplicationdata({userProfileData, appInsights})
         .then((data)=>{
             // console.log(JSON.parse(data["metaData"]))
             if(type==="services"){
-                setServiceList(JSON.parse(data["metaData"]))
+                setServiceList(JSON.parse(data["Data"]))
             }
             else if(type==="urls"){
-                setUrlList(JSON.parse(data["metaData"]))
+                setUrlList(JSON.parse(data["Data"]))
             }
             else{
-                setCustomRequirementList(JSON.parse(data["metaData"]))
+                setCustomRequirementList(JSON.parse(data["Data"]))
             }
             // console.log(JSON.parse(data["metaData"]))
         })

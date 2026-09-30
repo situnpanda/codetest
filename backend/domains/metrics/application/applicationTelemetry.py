@@ -13,6 +13,7 @@ import os
 import time
 import numpy, pyodbc
 from flask import jsonify
+from shared.appinsights_logger import error_response
 import json
 
 serviceData = {
@@ -131,7 +132,7 @@ def serverDownTimeData(connectionString, apmNumbers, serverName, aggregate, star
         print("Exception in servicestatus azure execution: ",Ex )
         info =exceptioninfo(Ex,serversQuery)
         insert_data(info)
-        return jsonify({'error':str(Ex)}),500          
+        return error_response(500, "Failed to fetch service status", detail=info, exc=Ex)          
 
 
 
@@ -620,14 +621,14 @@ def getIncidentObservation(incidentList):
             print(ex)
             info = exceptioninfo(ex)
             insert_data(info)
-            return jsonify({'error':str(ex)}),500
+            return error_response(500, "Failed to build incident observation", detail=info, exc=ex)
         # print(df_observation)
         return df_observation  
     except Exception as ex:
         print(ex)
         info = exceptioninfo(ex)
         insert_data(info)
-        return jsonify({'error':str(ex)}),500
+        return error_response(500, "Failed to fetch incident observation", detail=info, exc=ex)
 
 def changeRequest(connectionString, appCI, startTime, endTime):
 

@@ -2,12 +2,10 @@
 
 ```
 backend/
-├── main.py            Thin entry point (imports apis.app:app)
+├── main.py            Entry point + composition root: Flask app, CORS, blueprint registration, app-level routes
 ├── requirements.txt
-├── setup.py
 ├── swagger.json
-├── apis/              "Only calling" — web/routing layer
-│   ├── app.py         Composition root: Flask app, CORS, blueprint registration
+├── apis/              "Only calling" — web/routing layer (VSA route slices)
 │   ├── alerts.py
 │   ├── application.py
 │   ├── infrastructure.py
@@ -35,4 +33,4 @@ backend/
 - `apis/` performs routing only — it wires HTTP endpoints to domain functions.
 - `domains/` holds business logic. Domains depend on `shared/`, never on each other.
 - `shared/` is the common connector layer (KeyVault, SQL, ADX, Log Analytics, logging).
-- `main.py` stays thin: it only imports and runs the Flask app from `apis/app.py`.
+- `main.py` is the composition root: it builds the Flask app, registers all blueprints/routes, and is the WSGI target (`main:app`).

@@ -10,9 +10,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FLASK_APP=main.py \
     FLASK_ENV=production \
     FLASK_RUN_HOST=0.0.0.0 \
-    FLASK_RUN_PORT=5000 \
-    CHROME_BIN=/usr/bin/chromium \
-    CHROMEDRIVER_BIN=/usr/bin/chromedriver
+    FLASK_RUN_PORT=5000
+# chromium: Chromium/ChromeDriver env vars disabled (CVE remediation). Re-add when Selenium interface validation is restored.
+#    CHROME_BIN=/usr/bin/chromium \
+#    CHROMEDRIVER_BIN=/usr/bin/chromedriver
 
 # Install system dependencies, Microsoft ODBC driver, runtime libraries, and register driver
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -30,11 +31,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /usr/share/keyrings/microsoft-prod.gpg /etc/apt/sources.list.d/mssql-release.list
 
-# Install Chromium and ChromeDriver for Selenium (used by InterfaceMetrics one-click validation)
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends chromium chromium-driver \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# chromium: Chromium + ChromeDriver install removed (CVE remediation). Selenium-based
+# InterfaceMetrics one-click validation is disabled until a patched browser is reintroduced.
+# RUN apt-get update \
+#     && apt-get install -y --no-install-recommends chromium chromium-driver \
+#     && apt-get clean \
+#     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies.
 # pywin32 is Windows-only, so strip it before installing on this Linux image.
@@ -48,8 +50,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 COPY . .
 
 # Create non-root user
-RUN useradd -m -u 1000 flaskuser && chown -R flaskuser:flaskuser /app \
-    && mkdir -p /tmp/chrome-data && chmod 777 /tmp/chrome-data
+# chromium: /tmp/chrome-data no longer needed (Chromium removed).
+RUN useradd -m -u 1000 flaskuser && chown -R flaskuser:flaskuser /app
 USER flaskuser
 
 EXPOSE 5000

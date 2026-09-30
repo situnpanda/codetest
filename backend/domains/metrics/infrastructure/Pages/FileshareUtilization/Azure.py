@@ -2,6 +2,7 @@ import pandas as pd
 import numpy
 from shared.dataBase import connectToDw, queryDw, connectToDw_AADpwd, exceptioninfo, insert_data
 from flask import jsonify
+from shared.appinsights_logger import error_response
 
 def azureFileshareUtilization(aggregate,timeGenerated,appnamecond):
     if(aggregate=="no"):
@@ -62,10 +63,10 @@ def azureFileshareUtilization(aggregate,timeGenerated,appnamecond):
             print("Exception in connecting to crcamonitoring database", Ex)
             info = exceptioninfo(Ex)
             insert_data(info)
-            return jsonify({'error': str(Ex)}), 500
+            return error_response(500, "Failed to connect to monitoring database", detail=info, exc=Ex)
     except Exception as Ex:
         print("Exception in Azure Fileshare Utilization:", Ex)
         info = exceptioninfo(Ex, sqlQueryFileshareUtil)
         insert_data(info)
-        return jsonify({'error': str(Ex)}), 500
+        return error_response(500, "Failed to fetch Azure fileshare utilization", detail=info, exc=Ex)
 
