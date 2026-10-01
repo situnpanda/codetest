@@ -5,38 +5,21 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, request, jsonify
 from datetime import datetime
 import pandas as pd
 
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 from shared.dataBase import exceptioninfo
 
-from shared.appinsights_logger import log_performance, error_response
-
-citrixPerf = Blueprint(
-    "infrastructureTelemetry_citrixMetrics",
-    __name__,
-    url_prefix="/api/infrastructureMetrics",
-)
+from shared.appinsightsLogger import error_response
 
 
-@citrixPerf.route("/citrixPerfMetrics", methods=["POST"])
-@log_performance()
-def getCitrixPerf(data={}):
+def get_citrix_perf(data={}):
     """
     Fetch all rows currently present in the Citrix_Metrics_Perf ADX table.
     No time / app filters are applied for now - returns everything.
     """
     try:
-        # Accept a JSON body (even though it isn't used right now) so the
-        # contract stays consistent with the other infrastructureMetrics APIs.
-        if len(data.keys()) == 0:
-            try:
-                _ = request.get_json(silent=True) or {}
-            except Exception:
-                _ = {}
-
         st = datetime.now()
 
         adxQuery = """

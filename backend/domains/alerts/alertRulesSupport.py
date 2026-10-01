@@ -1,22 +1,12 @@
-from shared.LogAnalytics import post_data_to_log_analytics
+from shared.logAnalytics import post_data_to_log_analytics
 from shared.dataBase import queryDw,insertDw,updateDw, connectToDw_AADpwd,connectToDw_AADpwd_Write
 import json
 import requests
 
-from flask import Blueprint, jsonify, request
-
-# All routes in this blueprint will be under /api/AlertRules/*
-alert_rules_bp = Blueprint("alert_rules", __name__, url_prefix="/api/AlertRules")
-
 connectionString_write = connectToDw_AADpwd_Write("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
 connectionString = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
 
-@alert_rules_bp.route("/insertEventLogs",methods=["POST"])
 def insertEventLogs(data={}):
-    if(len(data.keys())==0):
-        bodyParams = request.json
-        data = bodyParams["data"]
-    
     try:
         col = ["Event ID", "Time Generated", "Event Metric", "Source Event ID", "Source Name", "Source Instance", "Source Alert Rule Name", "Event Severity", "Event State", "Alert ID", "Application CI", "Resource Name"]
         eventId = data["essentials"]["alertId"]
@@ -46,11 +36,7 @@ def insertEventLogs(data={}):
         print(ex)
         return "Exception"
 
-@alert_rules_bp.route("/insertAlertLogs",methods=["POST"])
 def insertAlertLogs(data={}):
-    if(len(data.keys())==0):
-        bodyParams = request.json
-        data = bodyParams["data"]
     try:
         col = ["Alert ID", "Time Generated", "Time Updated", "Resource Name", "Alert Type", "Alert Message", "Acknowledgement", "Incident Number", "Application CI", "Alert State", "Event Counter", "Impacted CI", "Application Family", "Communication"]
         alertId = data["essentials"]["originalAlertId"]
@@ -216,13 +202,8 @@ def build_resource_table_html(data,alertRule):
     html+="</table>"
     return html
 
-@alert_rules_bp.route("/constructAlertBody",methods=["POST"])
 def createAlert(data={}, communication={}):
     subject = data["Application Family"]+"-"+data["essentials"]["alertRule"]
-    if(len(data.keys())==0 and len(communication.keys())==0):
-        bodyParams = request.json
-        data = bodyParams["data"]
-        communication = bodyParams["communication"]
     if(communication["Type"].upper()=="EMAIL"):
         communication["Subject"] = subject
     alertRule = data["essentials"]["alertRule"]
@@ -263,12 +244,7 @@ def updateRecord(id):
     except Exception as ex:
         raise Exception ("Update to id Failed in DB" + ex)
 
-@alert_rules_bp.route("/updateEventState",methods=["POST"])
 def updateEventState(eventId=()):
-    if(len(list(eventId))==0):
-        bodyParams = request.json
-        eventId = bodyParams["eventId"]
-    
     placeholders = ','.join(['?' for _ in eventId])
     sqlQuery = f""" Update [Event Logs] set [Event State] = ? where [Event ID] in ({placeholders})"""
     params = ['Resolved',*eventId]

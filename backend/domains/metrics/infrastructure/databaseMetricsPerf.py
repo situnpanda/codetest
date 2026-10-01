@@ -5,16 +5,13 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, jsonify, request
 from shared.dataBase import queryDw, connectToDw_AADpwd, insert_data, exceptioninfo
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
-from shared.appinsights_logger import log_performance, error_response
-
-databasePerf = Blueprint("infrastructureTelemetry_databaseMetrics", __name__, url_prefix="/api/infrastructureMetrics")
+from shared.appinsightsLogger import error_response
 
 def getQueryDatabase(aggregate, startTime, endTime, databaseListStr):
     if(aggregate):
@@ -56,13 +53,7 @@ def getQueryDatabase(aggregate, startTime, endTime, databaseListStr):
         else:
             raise Exception("Query Formation incomplete")
 
-@databasePerf.route("/",methods=["GET"])
-def hello():
-    return "Hello"
-
-@databasePerf.route("/databasePerfMetrics",methods=["POST"])
-@log_performance()
-def getDatabasePerf(data={}):
+def get_database_perf(data={}):
     try:
         connectionString = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         objectNameMapping = {
@@ -77,10 +68,7 @@ def getDatabasePerf(data={}):
             "dtu":'dtu_consumption_percent'
         }
         
-        type = ""
-        if(len(data.keys())==0):
-            data = request.get_json()
-            type = "api"
+        data = data or {}
         
         startTime = data.get("Start Time", None)
         endTime = data.get("End Time", None)

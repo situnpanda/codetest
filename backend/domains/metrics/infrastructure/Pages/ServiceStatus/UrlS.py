@@ -3,10 +3,10 @@ import pandas
 import numpy
 import pytz
 from datetime import datetime, timedelta
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 from flask import jsonify
-from shared.appinsights_logger import error_response
-from domains.metrics.infrastructure.Pages.ServiceStatus.Azure import processDataFroDurationServices
+from shared.appinsightsLogger import error_response
+from domains.metrics.infrastructure.pages.serviceStatus.azure import processDataFroDurationServices
 
 def urlStatus(connectionString, apmNumbers, startTime, endTime, aggregate):
     try:

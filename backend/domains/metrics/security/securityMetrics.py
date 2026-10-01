@@ -1,21 +1,16 @@
-from flask import Blueprint, request, jsonify
 import pandas
 from datetime import datetime, timezone
 from shared.dataBase import exceptioninfo, insert_data
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 
-from shared.appinsights_logger import log_performance, error_response
+from shared.appinsightsLogger import error_response
 
-SecurityMetrics = Blueprint('credentialInventory', __name__)
-
-@SecurityMetrics.route('/api/credentialInventory', methods=['POST'])
-@log_performance()
-def getCredentialInventory():
+def get_credential_inventory(dataPost={}):
     """
     Unified API to fetch credential expiry data (Service Accounts + Venafi Certificates).
     """
     try:
-        dataPost = request.get_json() or {}
+        dataPost = dataPost or {}
         application_ci = dataPost.get('applicationCI', None)
         object_type = dataPost.get('objectType', 'all')
         

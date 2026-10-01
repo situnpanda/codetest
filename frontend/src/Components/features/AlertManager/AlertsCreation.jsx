@@ -509,7 +509,7 @@ export default function AlertsCreation({userProfileData, appInsights, backendSes
             .filter(email => email.trim() !== "");
     
           setWatchlistOptions(emails); // Store in state
-          console.log(emails)
+        //   console.log(emails)
         } catch (error) {
           console.error('Error fetching watchlist:', error);
           setWatchlistOptions([]);

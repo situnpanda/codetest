@@ -5,7 +5,7 @@ import numpy as np
 import pyodbc
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, AzureCliCredential, ManagedIdentityCredential
-from shared.LogAnalytics import post_data_to_log_analytics
+from shared.logAnalytics import post_data_to_log_analytics
 from shared.dataBase import queryDw, exceptioninfo, insert_data
 from datetime import datetime, timedelta
 import pytz

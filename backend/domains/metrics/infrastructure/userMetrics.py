@@ -5,26 +5,21 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, jsonify, request
 from shared.dataBase import insert_data, exceptioninfo
-from shared.ADX import readFromADX
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.adx import readFromADX
+from shared.logAnalytics import queryInLogAnalytics
 import pandas as pd
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 
-from shared.appinsights_logger import log_performance, error_response
+from shared.appinsightsLogger import error_response
 
-userMetrics = Blueprint("infrastructureTelemetry_userMetrics", __name__, url_prefix="/api/infrastructureMetrics")
- 
 PERF_WORKSPACE_ID = "552b9630-b106-4fe7-a1fa-97d04a0010ef"
 PERF_SERVICE_NAME = "iTelemetry-Backend"
 PERF_ROLE_NAME = "iTelemetry.iTelemetry-Backend"
 
-@userMetrics.route("/userMetrics", methods=["GET"])
-@log_performance()
-def getUserMetrics():
+def get_user_metrics():
     try:
         st = datetime.now()
 
@@ -84,9 +79,7 @@ def _perf_records(query):
     return json.loads(df.to_json(orient="records"))
 
 
-@userMetrics.route("/performanceMetrics", methods=["GET"])
-@log_performance()
-def getPerformanceMetrics():
+def get_performance_metrics(days=7):
     """
     Backend API performance metrics derived from our own App Insights logs
     (AppTraces). Reads the canonical schema we push (event_type, endpoint,
@@ -97,7 +90,7 @@ def getPerformanceMetrics():
         st = datetime.now()
 
         try:
-            days = int(request.args.get("days", 7))
+            days = int(days)
         except (TypeError, ValueError):
             days = 7
         if days not in (7, 14, 30):

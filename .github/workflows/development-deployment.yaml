@@ -2,7 +2,7 @@ name: Development Deployment
 
 on:
   push:
-    branches: [ "Development" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:

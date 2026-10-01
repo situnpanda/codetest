@@ -45,16 +45,16 @@ backend/
 ├── main.py            → entry point + composition root: builds the Flask app, registers blueprints/routes; WSGI target `main:app`
 ├── apis/              → "ONLY CALLING" web/routing layer (the front desk)
 │     app.py           → composition root: Flask app, CORS, blueprint registration
-│     alerts.py  application.py  infrastructure.py  metadata.py
-│     operations.py  summary.py  system.py
+│     alerts.py  analytics.py  infrastructure.py  application.py  chatops.py
+│     network.py  metadata.py  misc.py  security.py
 ├── domains/           → business logic, grouped by FEATURE (the brain)
-│     ├── alerting/    → alert rules + AlertTriggers/
-│     ├── metrics/     → CORE telemetry: everything fetched from the data sources
-│     │                  (+ application/ and infrastructure/ sub-slices)
+│     ├── alerts/      → alert rules + alertTriggers/
+│     ├── chatops/     → chat integrations  ◀── natural first microservice
 │     ├── metadata/    → reference/onboarding data fetched from the SQL database
-│     └── chatops/     → chat integrations  ◀── natural first microservice
+│     └── metrics/     → CORE telemetry, grouped by area:
+│                          analytics/ application/ infrastructure/ network/ security/
 ├── shared/            → connectors shared ACROSS domains
-│     keyVault.py  dataBase.py  ADX.py  LogAnalytics.py  appinsights_logger.py  utils/
+│     keyVault.py  dataBase.py  adx.py  logAnalytics.py  appinsightsLogger.py  utils/
 └── static/
 ```
 
@@ -231,7 +231,7 @@ AKS image needs.
 | ----------- | ---------------------- |
 | **Thin entry point** | ✅ `main.py` is the composition root and WSGI target — container `CMD` runs a WSGI server against `main:app`. |
 | **12-factor config** | Ensure all secrets/URLs come from env vars / Key Vault, not hardcoded. |
-| **Stateless process** | Move process-local caches (in-memory + `cache_paths` JSON files) to a shared store (e.g. Redis) or a mounted volume before running >1 pod. |
+| **Stateless process** | Move process-local caches (in-memory + `cachePaths` JSON files) to a shared store (e.g. Redis) or a mounted volume before running >1 pod. |
 | **Health endpoints** | Add `/healthz` (liveness) and `/readyz` (readiness) for K8s probes. |
 | **Dockerfile** | Add a `Dockerfile` per deployable (backend / each extracted service). |
 | **Tests in CI** | `tests/` mirrors the domains; run `pytest -m "not integration"` as a merge gate before building images. |
@@ -303,7 +303,7 @@ The layout is a **modular monolith** built so any domain can become its own serv
 | ------ | ---------------- | --- |
 | `chatops` | Easy | Touches only `shared.dataBase` + auth — cleanest first cut. |
 | `metadata` | Easy | Pure SQL reads/writes via `shared.dataBase`. |
-| `alerting` | Medium | Self-contained; AlertTriggers are batch-style (pair with jobs). |
+| `alerts` | Medium | Self-contained; alertTriggers are batch-style (pair with jobs). |
 | `metrics` | Medium–hard | Largest; ships as **one** service (its sub-slices are coupled), not four. |
 
 ### 6.3 The extraction recipe (mostly a move, not a rewrite)
@@ -324,7 +324,7 @@ The layout is a **modular monolith** built so any domain can become its own serv
   isolation is a larger, later effort.
 - **URL prefixes overlap** — several blueprints share prefixes, so an API gateway keyed on path
   is required to disambiguate.
-- **Process-local caches** — in-memory + `cache_paths` JSON files are per-process; some jobs
+- **Process-local caches** — in-memory + `cachePaths` JSON files are per-process; some jobs
   write cache the API reads. Move to Redis or a shared volume before scaling out.
 - **Auth** — `validateToken` lives in `shared/`, so every extracted service inherits it (no blocker).
 

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy
 from shared.dataBase import connectToDw, queryDw, connectToDw_AADpwd,exceptioninfo,insert_data
 from flask import jsonify
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 
 def azureNetworkUtilization(serverName_Cond, timeGenerated, subRg_Cond):
     

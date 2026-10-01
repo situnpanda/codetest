@@ -20,17 +20,12 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import requests
-from flask import Blueprint, request
 from markupsafe import escape
 
 from shared.keyVault import connectToKeyVault
 from shared.dataBase import insert_data, exceptioninfo
-from shared.utils.sessionTokenAction import validateToken
+from shared.sessionTokenAction import validateToken
 
-
-crowdstrikeMetrics = Blueprint(
-    "crowdstrikeMetrics", __name__, url_prefix="/api/crowdstrikeMetrics"
-)
 
 CROWDSTRIKE_BASE_URL = "https://api.crowdstrike.com"
 REPOSITORY = "search-all"
@@ -265,8 +260,8 @@ def build_connection_data(df, ip_field="source.ip", bucket="1h", start_ms=None, 
         **build_time_series(df, ip_field=ip_field, bucket=bucket, start_ms=start_ms, end_ms=end_ms),
     }
 
-def _parse_window():
-    data = request.get_json(silent=True) or {}
+def _parse_window(data={}):
+    data = data or {}
     # Accept either a single serverName or a list of serverNames.
     server_names = data.get("serverNames")
     if server_names is None:
@@ -329,11 +324,10 @@ def _handle_exception(ex):
     return {"status": 501, "Data": info, "meta": {}, "error": None}
 
 
-@crowdstrikeMetrics.route("/getConnectionData", methods=["POST"])
-def getConnectionData():
+def get_connection_data(data={}):
 
     try:
-        params, error = _parse_window()
+        params, error = _parse_window(data)
         if error:
             return {"status": 400, "Data": str(escape(error)), "meta": {}, "error": None}
 

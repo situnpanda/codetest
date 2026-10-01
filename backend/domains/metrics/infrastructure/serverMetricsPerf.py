@@ -5,9 +5,8 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, jsonify, request
 from shared.dataBase import queryDw, connectToDw_AADpwd, insert_data, exceptioninfo
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 from domains.metrics.infrastructure.infrastructureTelemetry import fetchCustomThreshold
 import pandas as pd
 import numpy as np
@@ -15,9 +14,7 @@ import gc
 import json
 from datetime import datetime
 
-from shared.appinsights_logger import log_performance, error_response
-
-serverPerf = Blueprint("infrastructureTelemetry_serverMetrics", __name__, url_prefix="/api/infrastructureMetrics")
+from shared.appinsightsLogger import error_response
 
 def updateDatetime(val):
     dt = datetime.strptime(val, "%Y-%m-%d %I:%M:%S %p")
@@ -26,13 +23,7 @@ def updateDatetime(val):
     val = dt_floored.strftime("%Y-%m-%d %I:%M:%S %p")
     return val
 
-@serverPerf.route("/",methods=["GET"])
-def hello():
-    return "Hello"
-
-@serverPerf.route("/serverPerfMetrics",methods=["POST"])
-@log_performance()
-def getServerPerf(data={}):
+def get_server_perf(data={}):
     try:
         connectionString = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         objectNameMapping = {
@@ -40,11 +31,8 @@ def getServerPerf(data={}):
             "memory" : "memory",
             "disk" : "logicaldisk"
         }
-        call_type = ""
-        if(len(data.keys())==0):
-            data = request.get_json()
-            call_type = "api"
-        
+        data = data or {}
+
         startTime = data.get("Start Time", None)
         endTime = data.get("End Time", None)
         objectName = data.get("Object Name", [])

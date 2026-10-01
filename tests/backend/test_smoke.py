@@ -4,7 +4,7 @@ import importlib.util
 
 def test_domains_are_importable():
     for module in (
-        "domains.alerting",
+        "domains.Alerts",
         "domains.metrics",
         "domains.metadata",
         "domains.chatops",

@@ -1,19 +1,14 @@
 import pandas
-from flask import Blueprint, request, jsonify
 import sys, os
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 from shared.dataBase import queryDw, connectToDw_AADpwd, insert_data, exceptioninfo
 
-from shared.appinsights_logger import log_performance, error_response
+from shared.appinsightsLogger import error_response
  
-resourceCompliance = Blueprint("resourceCompliance", __name__)
- 
-@resourceCompliance.route('/api/infraEvents', methods=["POST"])
-@log_performance()
-def get_infra_events():
+def get_infra_events(dataPost={}):
     try:
 
-        dataPost = request.get_json() or {}
+        dataPost = dataPost or {}
         hours = int(dataPost.get('hours', 24))
         eventType = dataPost.get('eventType')
 

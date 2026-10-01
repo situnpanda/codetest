@@ -5,14 +5,14 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[2]
 sys.path.append(str(root))
 
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 from shared.dataBase import queryDw, exceptioninfo, insert_data, connectToDw_AADpwd
 import json
 import pandas as pd
 import numpy as np
 import uuid
 from datetime import datetime
-from domains.alerting.alertRulesSupport import insertEventLogs, insertAlertLogs, updateEventState, createAlert
+from domains.alerts.alertRulesSupport import insertEventLogs, insertAlertLogs, updateEventState, createAlert
 
 class AlertSchema:
     def __init__(self, appFamily, communication, data, resourceName, signalType):

@@ -1,153 +1,86 @@
-import os
-import json
-import time
+"""Application HTTP route slice (consolidated).
 
+Web/routing layer for the ``/api/applicationMetrics`` service/URL/interface
+endpoints plus incident, change-request, downtime, app-validation, reliability
+and exception endpoints. Business logic lives in ``domains.metrics.*``; this
+module only wires HTTP requests to those functions and returns the uniform
+success/error envelope.
+"""
 import pandas
 from datetime import datetime
-from flask import Blueprint, request, jsonify
 
+from flask import Blueprint, request
+
+from shared.appinsightsLogger import log_performance, error_response
+from shared.adx import readFromADX
 from shared.dataBase import connectToDw_AADpwd, connectToDw_SqlServerPwd
-from shared.ADX import readFromADX
-from shared.filters import filtersData, getFiltersFromCache, getServerList
-from domains.metrics.application.applicationTelemetry import servicesData, incidentData, getIncidentObservation, changeRequest
-from shared.appinsights_logger import error_response
+from shared.filters import getFiltersFromCache
+from shared.variables import globalVariables
+from domains.metrics.application.windowsServiceMetrics import (
+    get_service_url_status,
+    get_service_status,
+    get_url_status,
+)
+from domains.metrics.application.interfaceMetrics import fetch_corepoint_interface_status
+from domains.metrics.application.downtimeDetailsMetrics import get_change_incident_events
+from domains.metrics.application.applicationTelemetry import (
+    incidentData,
+    getIncidentObservation,
+    changeRequest,
+    interfacesLogsData,
+)
+from domains.metrics.infrastructure.infrastructureTelemetry import (
+    ValidationData,
+    appReliability,
+    appExceptions,
+)
 
 application_bp = Blueprint("application", __name__)
 
 
-@application_bp.route('/api/serverLogs', methods = ["POST"])
-def serverLogs():
-    print(datetime.now())
-    dataPost = request.get_json()
-    filter = dataPost.get('filters')
-    
-    server_df = getServerList(filter)
+@application_bp.route("/api/applicationMetrics/", methods=["GET"])
+def hello():
+    return "Hello"
 
-    
-    return {"status": 200, "Data": server_df["Server"].to_json(), "meta": {}, "error": None}
-    
-# @app.route('/api/serverLogs', methods = ["POST"])
-# def serverLogs():
 
-#     def fetch_server_logs(filter):
-#         """Helper function to fetch server logs from the database"""
-#         apmNumbers = filtersData(filter, "apmNumber")
-#         connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW", "servCRCAMonitor")
-#         server_df = server_overview_df(connectToServicePerf, apmNumbers, "", "")
-#         print("The server df is")
-#         print(server_df)
+@application_bp.route("/api/applicationMetrics/serviceUrlMetrics", methods=["POST"])
+@log_performance()
+def getServiceUrlStatus():
+    data = request.get_json() or {}
+    return get_service_url_status(data)
 
-#         server_df["Count"] = len(server_df["Server"]) if "Server" in server_df else 0
-#         return server_df
 
-#     dataPost = request.get_json()
-#     logsData = dict()
-#     filter = dataPost.get('filters')
-#     #print("The filter is", filter)
-#     serverName = dataPost.get('serverName')
-#     mailAdd = dataPost.get('mailAdd')
+@application_bp.route("/api/applicationMetrics/serviceMetrics", methods=["POST"])
+@log_performance()
+def getServiceStatus():
+    data = request.get_json() or {}
+    return get_service_status(data)
 
-#     if os.path.exists(serverListJsonPath):
 
-#         # Check if all filters are ['All'] or all except 'supportGroup' are ['All']
-#         all_filter_except_support_group = all(
-#             (k == 'supportGroup' or v == ['All'])
-#             for k, v in filter.items()
-#         )
+@application_bp.route("/api/applicationMetrics/urlMetrics", methods=["POST"])
+@log_performance()
+def getUrlStatus():
+    data = request.get_json() or {}
+    return get_url_status(data)
 
-#         if all(value == ['All'] for value in filter.values()) or all_filter_except_support_group:
-#             # print("Yes the value is all")
-            
-#             for attempt in range(2):
-#                 #print("The server os path exists")
-#                 try: 
-#                     with open(serverListJsonPath, "r") as json_file:
-#                         server_df = json.load(json_file) 
-#                         server_df["Server"] = pandas.DataFrame(server_df["Server"])
 
-#                         # Check if SupportGroup is not 'All'
-#                         if filter.get('supportGroup') != ['All']:
-#                             support_groups = [sg.lower() for sg in filter.get('supportGroup')]  # Convert all filter values to lowercase
-#                             server_df["Server"] = server_df["Server"][server_df["Server"]['SupportGroup'].str.lower().isin(support_groups)]
+@application_bp.route("/api/applicationMetrics/onDemand/interfaceStatus", methods=["POST"])
+@log_performance()
+def fetchCorepointInterfaceStatus():
+    requestData = request.get_json() or {}
+    app = requestData.get("Application family", [])
+    return fetch_corepoint_interface_status(app)
 
-    
 
-#                         server_df["Count"] = len(server_df["Server"])
-#                         #print(server_df["Server"])
-#                         distinct_support_groups = server_df["Server"]['SupportGroup'].unique()
-#                         #print("The distinct support groups are", distinct_support_groups)
-#                         logsData["ServerLogs"] = server_df["Server"].to_json() 
-#                         #print(logsData)
-#                         break
-
-#                 except json.JSONDecodeError as e:
-#                     print(f"Attempt {attempt + 1}: JSONDecodeError - {e}. Retrying...")
-
-#                 if attempt < 1:  # Sleep before retrying (only before the last attempt)
-#                     print("Waiting 1 second before retrying...")
-#                     time.sleep(1)     
-
-#         else :
-#             # print("came into the else condition")
-#             server_df = fetch_server_logs(filter)
-#             logsData["ServerLogs"] = server_df["Server"].to_json()
-#             logsData["Count"] = server_df["Count"]
-#             #print(logsData["ServerLogs"])
-
-#     else :
-        
-#         server_df = fetch_server_logs(filter)
-#         logsData["ServerLogs"] = server_df["Server"].to_json(orient="records")
-#         logsData["Count"] = server_df["Count"]
-        
-#     return jsonify(logsData)
-
-@application_bp.route('/api/serviceLogs', methods=["POST"])
-def serviceLogs():
-    
+@application_bp.route('/api/downtimeEvents', methods=['POST'])
+@log_performance()
+def get_change_incident_events_route():
     try:
-        s = datetime.now()
-        dataPost = request.get_json()
-        aggregate = dataPost.get('aggregate')    # Retrieve the value of the 'limit' parameter
-        filter = dataPost.get('filters')
-        start_time = dataPost.get('start_time')  # Retrieve the value of the 'start_time' parameter
-        end_time = dataPost.get('end_time')  # Retrieve the value of the 'end_time' parameter
-        serviceType = dataPost.get('serviceType', 'All')
-        serverName = ""
-        apmNumbers = ""
-        logsData = dict()
-        print("hello Hereeee")
-        print(filter)
-        if('serverName' in dataPost):
-            serverName = dataPost.get('serverName')
-            if(not("'" in serverName)):
-                s= ""
-                for i in serverName.split(','):
-                    s+="'"+i+"',"
-                s=s[0:-1]
-                # print(s)
-                serverName = s
-        else:
-            apmNumbers = getFiltersFromCache(filter, "apmNumber")
-            # print("APM Numbers")
-            # print(apmNumbers)
-        connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
-        
-        services_df = servicesData(connectToCrcaMonitoring, apmNumbers, serverName, aggregate, start_time, end_time)
-        
-        # print(services_df["Service"].columns)
-        for i in services_df:
-            if(i!="Service"):
-                print(i+" "+services_df[i])
-                logsData[i] = services_df[i]
-        
-        e = datetime.now()
-        print("Services API: "+ str(s)+" - "+str(e)) 
-        return {"status": 200, "Data": services_df["Service"].to_json(), "meta": dict(logsData), "error": None}, 200
-        
+        data = request.get_json() or {}
+        return get_change_incident_events(data)
     except Exception as ex:
-        print(str(ex))
-        return error_response(501, "Failed to fetch service metrics", detail=str(ex), exc=ex)
+        return error_response(500, "Failed to fetch downtime details", exc=ex)
+
 
 @application_bp.route('/api/incidentLogs', methods=["POST"])
 def incidentLogs():
@@ -169,6 +102,7 @@ def incidentLogs():
     print("EndTime:"+str(datetime.now()))
     return {"status": 200, "Data": logsData["incidents"], "meta": {}, "error": None}
 
+
 @application_bp.route('/api/incidentObservation', methods=["POST"])
 def incidentObservation():
     dataPost = request.get_json()
@@ -186,6 +120,7 @@ def incidentObservation():
     observation_df = getIncidentObservation(incString)
     logsData["incidentObservation"] = observation_df.to_json()
     return {"status": 200, "Data": observation_df.to_json(), "meta": {}, "error": None}
+
 
 @application_bp.route('/api/changeIncidentevents', methods=["POST"])
 def getEvents():
@@ -245,6 +180,7 @@ def getEvents():
         print("Events API Error:", ex)
         return error_response(500, "Failed to fetch change/incident events", detail=str(ex), exc=ex)
 
+
 @application_bp.route('/api/changeRequestLogs', methods=["POST"])
 def changeRequestsLogs():
 
@@ -267,3 +203,89 @@ def changeRequestsLogs():
     logsData["changeRequests"] = changeRequests_df["changeRequestList"].to_json()
     
     return {"status": 200, "Data": changeRequests_df["changeRequestList"].to_json(), "meta": {}, "error": None}
+
+
+@application_bp.route('/api/appValidation', methods=["POST"])
+def appValidation():
+    dataPost = request.get_json()
+    appCI =dataPost.get('appCI',"").strip("'")
+    aggregate =dataPost.get('aggregate',"no")
+    logsData = {}
+    df = ValidationData(aggregate,appCI)
+    logsData = {"appValidation": df.to_json()}
+    return {"status": 200, "Data": df.to_json(), "meta": {}, "error": None}
+
+
+@application_bp.route('/api/applicationReliability', methods=["POST"])
+def applicationReliabilityLog():
+    dataPost = request.get_json()
+
+    filter = dataPost.get('filters')      
+    start_time = dataPost.get('start_time')   
+    end_time = dataPost.get('end_time') 
+    # apmNumbers = filtersData(filter, "apmNumber")
+    apmNumbers = getFiltersFromCache(filter, "apmNumber")  
+      
+    aggregateBool = dataPost.get('aggregate')  
+    #print(aggregateBool)
+    connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
+    insights_df = appReliability(connectToServicePerf, apmNumbers,aggregateBool, start_time, end_time)
+
+    return {"status": 200, "Data": insights_df, "meta": {}, "error": None}
+
+
+@application_bp.route('/api/applicationexceptions', methods=["POST"])
+def applicationexceptionLog():
+    dataPost = request.get_json()
+
+    filter = dataPost.get('filters')      
+    start_time = dataPost.get('start_time')   
+    end_time = dataPost.get('end_time') 
+    aggregateBool = dataPost.get('aggregate')  
+    #print(aggregateBool)
+
+    # apmNumbers = filtersData(filter, "apmNumber")
+    apmNumbers = getFiltersFromCache(filter, "apmNumber")  
+         
+    connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
+    insights_df = appExceptions(connectToServicePerf, apmNumbers, aggregateBool, start_time, end_time)
+    
+    return {"status": 200, "Data": insights_df, "meta": {}, "error": None}
+
+
+@application_bp.route('/api/interfaceHealthLogs', methods=["POST"])
+def interfaceLogsFinal():
+    
+    dataPost = request.get_json()
+    aggregateBool = dataPost.get('aggregate')    # Retrieve the value of the 'limit' parameter
+    start_time = dataPost.get('start_time')  # Retrieve the value of the 'start_time' parameter
+    end_time = dataPost.get('end_time')  # Retrieve the value of the 'end_time' parameter
+    filter = dataPost.get('filters')
+    
+    appFamily = getFiltersFromCache(filter, "appFamily")
+
+    connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
+
+    interfaces_df = interfacesLogsData(connectToCrcaMonitoring, globalVariables.apmNumbers,start_time,end_time, aggregateBool, appFamily)
+    print(interfaces_df)
+    # Check if DataFrame is empty
+    if interfaces_df['Interfaces'].empty:
+        response = {
+            "Interfaces": [],
+            "Total Interfaces": 0
+        }
+    else:
+        interfaces_df['Interfaces']['TimeGenerated'] = interfaces_df['Interfaces']['TimeGenerated'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        # Convert the DataFrame to JSON format
+        interfaces_json = interfaces_df['Interfaces'].to_dict(orient="records")
+        
+        # Calculate distinct count of InterfaceName
+        total_interfaces = interfaces_df['Interfaces']['InterfaceName'].nunique()
+
+        # Prepare the final response
+        response = {
+            "Interfaces": interfaces_json,
+            "Total Interfaces": total_interfaces
+        }
+    print(response)  # Log for debugging
+    return {"status": 200, "Data": response, "meta": {}, "error": None}

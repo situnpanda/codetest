@@ -1,5 +1,5 @@
 from shared.dataBase import queryDw, connectToDw,exceptioninfo,insert_data
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 from shared.keyVault import connectToKeyVault
 from shared.variables import globalVariables
 from datetime import datetime, timedelta
@@ -7,7 +7,7 @@ import pytz
 import pandas
 import numpy
 from flask import jsonify
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 def hospitalList(connectionString):
     # hospitalListQuery = """ Select State, Region, Hospital, [Site Code], Address from HospitalList """
     try:

@@ -5,32 +5,21 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, request
 from shared.dataBase import queryDw, connectToDw_AADpwd, insert_data, exceptioninfo
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 import pandas as pd
 import numpy as np
 import gc
 from datetime import datetime
 
-from shared.appinsights_logger import log_performance, error_response
-
-moxaPerf = Blueprint("infrastructureTelemetry_moxaMetrics", __name__, url_prefix="/api/infrastructureMetrics")
+from shared.appinsightsLogger import error_response
 
 WORKSPACE_ID = "552b9630-b106-4fe7-a1fa-97d04a0010ef"
 
 
-@moxaPerf.route("/", methods=["GET"])
-def hello():
-    return "Hello"
-
-
-@moxaPerf.route("/moxaPerfMetrics", methods=["POST"])
-@log_performance()
-def getMoxaPerf(data={}):
+def get_moxa_perf(data={}):
     try:
-        if len(data.keys()) == 0:
-            data = request.get_json()
+        data = data or {}
 
         startTime = data.get("Start Time", None)
         endTime = data.get("End Time", None)

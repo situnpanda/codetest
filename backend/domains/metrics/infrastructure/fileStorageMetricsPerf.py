@@ -5,16 +5,13 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, jsonify, request
 from shared.dataBase import queryDw, connectToDw_AADpwd, insert_data, exceptioninfo
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
-from shared.appinsights_logger import log_performance, error_response
-
-fileStoragePerf = Blueprint("infrastructureTelemetry_fileStorageMetrics", __name__, url_prefix="/api/infrastructureMetrics")
+from shared.appinsightsLogger import error_response
 
 def getQueryFileshare(aggregate, startTime, endTime, fileshareListStr):
     if(aggregate):
@@ -56,19 +53,13 @@ def getQueryFileshare(aggregate, startTime, endTime, fileshareListStr):
         else:
             raise Exception("Query Formation incomplete")
         
-@fileStoragePerf.route("/",methods=["GET"])
-def hello():
-    return "Hello"
-
-@fileStoragePerf.route("/fileStoragePerfMetrics",methods=["POST"])
-@log_performance()
-def getFileStoragePerf():
+def get_file_storage_perf(data={}):
     try:
         connectionString = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         objectNameMapping = {
             "storage":'storage', 
         }
-        data = request.get_json()
+        data = data or {}
         startTime = data.get("Start Time", None)
         endTime = data.get("End Time", None)
         objectName = data.get("Object Name", [])

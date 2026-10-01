@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from datetime import datetime
 import pytz
 from shared.dataBase import connectToDw_AADpwd_Write, insertDw, exceptioninfo,insert_data
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 
 activity_logging_bp = Blueprint("activityLogging", __name__, url_prefix="/api/logging")
 

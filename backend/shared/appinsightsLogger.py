@@ -2,7 +2,7 @@
 Centralized Application Insights Logger for Backend APIs
 
 Usage:
-    from shared.appinsights_logger import get_logger, log_performance, log_database_query, log_external_call
+    from shared.appinsightsLogger import get_logger, log_performance, log_database_query, log_external_call
 
     logger = get_logger(__name__)
     logger.info("Something happened", extra={"custom_key": "value"})

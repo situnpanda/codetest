@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy
 from shared.dataBase import connectToDw, queryDw, connectToDw_AADpwd, insert_data,exceptioninfo
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 from flask import jsonify
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 
 def azureDiskUtilization(aggregate, serverName_Cond, timeGenerated, subRg_Cond,threshold):
     #print(f"Threshold value: {threshold}")

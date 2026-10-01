@@ -4,20 +4,15 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, jsonify, request
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 import pandas as pd
 import json
 import re
 from datetime import datetime
 
-from shared.appinsights_logger import log_performance, error_response
+from shared.appinsightsLogger import error_response
 
-AnalyticsBp = Blueprint("infrastructureTelemetry_serverStatus", __name__, url_prefix="/api/infrastructureMetrics")
-
-@AnalyticsBp.route("/Analytics", methods=["POST"])
-@log_performance()
-def getServerStatus():
+def get_server_status(data={}):
     """
     Fetch server status from the ADX Analytics table.
 
@@ -33,7 +28,7 @@ def getServerStatus():
         { "ServerName": {0: "srv1", ...}, "Status": {0: "Up", ...}, "HostingType": {0: "Azure", ...}, ... }
     """
     try:
-        data = request.get_json()
+        data = data or {}
         app_ci = data.get("appCI", "")
         server_name = data.get("serverName", "")
         counter_name = data.get("CounterName", "Status")
@@ -88,9 +83,7 @@ def getServerStatus():
     except Exception as ex:
         return error_response(500, "Failed to fetch seasonal pattern", detail=str(ex), exc=ex)
 
-@AnalyticsBp.route("/PatternAnalysis", methods=["POST"])
-@log_performance()
-def getPatternAnalysis():
+def get_pattern_analysis(data={}):
     """
     Fetch the latest daily seasonal-pattern summary for a set of servers.
 
@@ -110,7 +103,7 @@ def getPatternAnalysis():
     An empty array is returned when no pattern rows exist for the request.
     """
     try:
-        body = request.get_json(silent=True) or {}
+        body = data or {}
         domain = str(body.get("domain", "utilization")).strip().lower()
         metric = str(body.get("metric", "")).strip().lower()
         servers = _sanitize_names(body.get("servers"))

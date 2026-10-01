@@ -21,13 +21,10 @@ import re
 # Add the parent of 'parent_folder' to sys.path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
-from flask import Blueprint, jsonify, request
 from shared.keyVault import connectToKeyVault
 from shared.dataBase import queryDw, insert_data, exceptioninfo, connectToDw_AADpwd, connectToDw_AADpwd_Write, updateDw, insertDw
 # Logging: central Application Insights logging via the @log_performance decorator
-from shared.appinsights_logger import log_performance, error_response
-
-interfacePerf = Blueprint("applicationTelemetry_interfaceStatus", __name__, url_prefix="/api/applicationMetrics")
+from shared.appinsightsLogger import error_response
 
 # chromium: The Selenium helper classes and worker_thread below drive Chromium to
 # scrape the Corepoint monitor UI. Chromium was removed from the image for CVE
@@ -202,18 +199,13 @@ def worker_thread(corepointMonitor, userName, serviceAccountPwd, app, interfaceS
 '''
 # chromium: end of disabled Selenium/Chromium block.
 
-@interfacePerf.route("/onDemand/interfaceStatus", methods=["POST"])
-@log_performance()
-def fetchCorepointInterfaceStatus(app=[]):
+def fetch_corepoint_interface_status(app=[]):
     # chromium: Corepoint interface scraping requires Selenium + Chromium, which were
     # removed for CVE remediation. Endpoint disabled until a patched browser is restored.
     return error_response(503, "Interface status validation is temporarily disabled (Chromium removed).")
 
     interfaceStatus  = []
     exceptionMessage = {}
-    if(len(app)==0):
-        requestData = request.get_json()
-        app = requestData.get("Application family", [])
     #     print(f"[onDemand/interfaceStatus] Raw request payload: {requestData}")
     
     # print(f"[onDemand/interfaceStatus] Received Application family: {app}")

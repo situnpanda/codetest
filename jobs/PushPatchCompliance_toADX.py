@@ -12,7 +12,7 @@ from azure.identity import DefaultAzureCredential, AzureCliCredential, ManagedId
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder, DataFormat
 from azure.kusto.ingest import IngestionProperties, IngestionMappingKind, KustoStreamingIngestClient, QueuedIngestClient
-from shared.ADX import connectToADX, readFromADX
+from shared.adx import connectToADX, readFromADX
 
 credential = None
 

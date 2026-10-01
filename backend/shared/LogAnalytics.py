@@ -12,7 +12,7 @@ import hashlib
 import hmac
 import base64
 
-from shared.appinsights_logger import log_dependency
+from shared.appinsightsLogger import log_dependency
 
 def connectToLogAnlytics():
     

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from shared.dataBase import connectToDw_AADpwd, queryDw, insert_data, exceptioninfo
-from shared.LogAnalytics import post_data_to_log_analytics
+from shared.logAnalytics import post_data_to_log_analytics
 
 # ── Configuration ────────────────────────────────────────────────────────────
 

@@ -10,7 +10,7 @@ from azure.identity import AzureCliCredential, ManagedIdentityCredential
 from azure.kusto.data import KustoConnectionStringBuilder, DataFormat
 from azure.kusto.ingest import IngestionProperties, QueuedIngestClient
 from shared.dataBase import connectToDw_AADpwd, queryDw, insert_data, exceptioninfo
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 import threading
 
 WORKSPACE_ID = "552b9630-b106-4fe7-a1fa-97d04a0010ef"

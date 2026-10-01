@@ -14,12 +14,12 @@ root = Path(__file__).resolve().parents[2]
 sys.path.append(str(root))
 
 from shared.dataBase import queryDw, exceptioninfo, insert_data, connectToDw_AADpwd
-from domains.alerting.AlertTriggers.ServerAlerts import serverAlertsMain
-from domains.alerting.AlertTriggers.FileStorageAlerts import fileStorageAlertsMain
+from domains.alerts.alertTriggers.serverAlerts import serverAlertsMain
+from domains.alerts.alertTriggers.fileStorageAlerts import fileStorageAlertsMain
 
 current_dir = Path(__file__).resolve().parent
 
-log_file = current_dir / "AlertingMasterOrchestrator.log"
+log_file = current_dir / "alertingMasterOrchestrator.log"
 
 logging.basicConfig(
     filename=str(log_file),

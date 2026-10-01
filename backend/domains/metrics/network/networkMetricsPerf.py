@@ -5,17 +5,14 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, jsonify, request
 from shared.dataBase import queryDw, connectToDw_AADpwd, insert_data, exceptioninfo
-from shared.ADX import readFromADX
-from shared.utils import convertTimeZone
+from shared.adx import readFromADX
+from shared import convertTimeZone
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
-from shared.appinsights_logger import log_performance, error_response
-
-networkPerf = Blueprint("infrastructureTelemetry_networkMetrics", __name__, url_prefix="/api/infrastructureMetrics")
+from shared.appinsightsLogger import error_response
 
 def updateDatetime(val):
     dt = datetime.strptime(val, "%Y-%m-%d %I:%M:%S %p")
@@ -24,13 +21,7 @@ def updateDatetime(val):
     val = dt_floored.strftime("%Y-%m-%d %I:%M:%S %p")
     return val
 
-@networkPerf.route("/",methods=["GET"])
-def hello():
-    return "Hello"
-
-@networkPerf.route("/networkPerfMetrics",methods=["POST"])
-@log_performance()  
-def getNetworkPerf(data={}):
+def get_network_perf(data={}):
     try:
         connectionString = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         objectNameMapping = {
@@ -41,11 +32,8 @@ def getNetworkPerf(data={}):
             "network_in_total": "network_in_total",
             "network_out_total": "network_out_total"
         }
-        type = ""
-        if(len(data.keys())==0):
-            data = request.get_json()
-            type = "api"
-        
+        data = data or {}
+
         startTime = data.get("Start Time", None)
         endTime = data.get("End Time", None)
         objectName = data.get("Object Name", [])

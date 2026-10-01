@@ -15,10 +15,10 @@ sys.path.append(str(root))
 
 from domains.metrics.application.applicationTelemetry import servicesData, interfacesLogsData
 from domains.metrics.infrastructure.infrastructureTelemetry import serverStatus
-from domains.metrics.ServerMetricsPerf import getServerPerf
-from domains.metrics.DatabaseMetricsPerf import getDatabasePerf
-from domains.metrics.FileStorageMetricsPerf import getFileStoragePerf
-from domains.metrics.WindowsServiceMetrics import getServiceUrlStatus
+from domains.metrics.infrastructure.serverMetricsPerf import getServerPerf
+from domains.metrics.infrastructure.databaseMetricsPerf import getDatabasePerf
+from domains.metrics.infrastructure.fileStorageMetricsPerf import getFileStoragePerf
+from domains.metrics.application.windowsServiceMetrics import getServiceUrlStatus
 from shared.dataBase import queryDw, insert_data, exceptioninfo, connectToDw_AADpwd, connectToDw_AADpwd_Write, updateDw, insertDw
 import base64
 

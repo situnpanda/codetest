@@ -5,19 +5,16 @@ import threading
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from flask import Blueprint, jsonify, request
 from shared.dataBase import queryDw, connectToDw_AADpwd, insert_data, exceptioninfo
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from domains.metrics.infrastructure.Pages.ServiceStatus.UrlS import urlStatus
-from shared.LogAnalytics import queryInLogAnalytics
-from shared.utils.convertTimeZone import convertUtcToPst
+from domains.metrics.infrastructure.pages.serviceStatus.urlS import urlStatus
+from shared.logAnalytics import queryInLogAnalytics
+from shared.convertTimeZone import convertUtcToPst
 
-from shared.appinsights_logger import log_performance, error_response
-
-servicePerf = Blueprint("applicationTelemetry_serviceStatus", __name__, url_prefix="/api/applicationMetrics")
+from shared.appinsightsLogger import error_response
 
 def getQueryServices(aggregate, startTime, endTime, serviceListStr):
     if aggregate == "forGAC":
@@ -170,15 +167,9 @@ def getQueryUrl(aggregate, startTime, endTime, urlListStr):
                         | order by TimeGenerated asc """
     return logAnalyticsQuery
 
-@servicePerf.route("/",methods=["GET"])
-def hello():
-    return "Hello"
-
-@servicePerf.route("/serviceUrlMetrics", methods=["POST"])
-@log_performance()
-def getServiceUrlStatus():
+def get_service_url_status(data={}):
     try:
-        data = request.get_json()
+        data = data or {}
         st = datetime.now()
         objectName = data.get("Object Name", [])
         threads = []
@@ -188,10 +179,10 @@ def getServiceUrlStatus():
         results = []
         
         if("services" in objectName):
-            threads.append(threading.Thread(target=getServiceStatus, args=(data,results,lock)))
+            threads.append(threading.Thread(target=get_service_status, args=(data,results,lock)))
             
         if("url" in objectName):
-            threads.append(threading.Thread(target=getUrlStatus, args=(data,results,lock)))
+            threads.append(threading.Thread(target=get_url_status, args=(data,results,lock)))
             
         for thread in threads:
             thread.start()
@@ -222,14 +213,12 @@ def getServiceUrlStatus():
             info["PageName"] = "WindowsServiceMetrics.py"
         return error_response(501, "Failed to fetch windows service metrics", detail=info, exc=ex)
 
-@servicePerf.route("/serviceMetrics",methods=["POST"])
-@log_performance()
-def getServiceStatus(data={},results=[],lock=threading.Lock()):
+def get_service_status(data={},results=None,lock=threading.Lock()):
     try:
         type = ""
-        if(not len(data)):
+        if results is None:
             type = "api"
-            data = request.get_json()
+        data = data or {}
         
         connectionString = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         objectNameMapping = {
@@ -323,14 +312,12 @@ def getServiceStatus(data={},results=[],lock=threading.Lock()):
             # insert_data(info)
         return error_response(501, "Failed to fetch windows service metrics", detail=info, exc=ex)
     
-@servicePerf.route("/urlMetrics",methods=["POST"])
-@log_performance()
-def getUrlStatus(data = {},results=[],lock=threading.Lock()):
+def get_url_status(data = {},results=None,lock=threading.Lock()):
     try:
         type = ""
-        if(not len(data)):
+        if results is None:
             type = "api"
-            data = request.get_json()
+        data = data or {}
         
         connectionString = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         

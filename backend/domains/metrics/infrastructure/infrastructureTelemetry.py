@@ -6,18 +6,18 @@ from datetime import datetime, timedelta
 import pytz
 from shared.keyVault import connectToKeyVault
 from shared.dataBase import connectToDw, queryDw, deleteDw,insertDw, connectToDw_AADpwd, connectToDw_AADpwd_Write, exceptioninfo, insert_data, connectToAeroDw_SqlServerPwd, connectToDw_SqlServerPwd, connectToDw_SQLServerAero,connectToDw_SqlServerPwdScom, queryAeroSnowflake
-from shared.LogAnalytics import queryInLogAnalytics
-from shared.appinsights_logger import error_response
-from domains.metrics.infrastructure.Pages.ServerStatus.OnPrem import onPremServerStatus
-from domains.metrics.infrastructure.Pages.CpuUtilization.OnPrem import onPremCpuUtilization
-from domains.metrics.infrastructure.Pages.CpuUtilization.Azure import azureCpuUtilization, processDataForDuration
-from domains.metrics.infrastructure.Pages.MemoryUtilization.OnPrem import onPremMemoryUtilization
-from domains.metrics.infrastructure.Pages.MemoryUtilization.Azure import azureMemoryUtilization
-from domains.metrics.infrastructure.Pages.NetworkUtilization.Azure import azureNetworkUtilization
-from domains.metrics.infrastructure.Pages.FileshareUtilization.Azure import azureFileshareUtilization
-from domains.metrics.infrastructure.Pages.DiskUtilization.Azure import azureDiskUtilization
-from domains.metrics.infrastructure.Pages.DiskUtilization.OnPrem import onPremDiskUtilization
-from domains.metrics.infrastructure.Pages.DatabaseMetrics.Azure import azureDbMetics
+from shared.logAnalytics import queryInLogAnalytics
+from shared.appinsightsLogger import error_response
+from domains.metrics.infrastructure.pages.serverStatus.onPrem import onPremServerStatus
+from domains.metrics.infrastructure.pages.cpuUtilization.onPrem import onPremCpuUtilization
+from domains.metrics.infrastructure.pages.cpuUtilization.azure import azureCpuUtilization, processDataForDuration
+from domains.metrics.infrastructure.pages.memoryUtilization.onPrem import onPremMemoryUtilization
+from domains.metrics.infrastructure.pages.memoryUtilization.azure import azureMemoryUtilization
+from domains.metrics.infrastructure.pages.networkUtilization.azure import azureNetworkUtilization
+from domains.metrics.infrastructure.pages.fileshareUtilization.azure import azureFileshareUtilization
+from domains.metrics.infrastructure.pages.diskUtilization.azure import azureDiskUtilization
+from domains.metrics.infrastructure.pages.diskUtilization.onPrem import onPremDiskUtilization
+from domains.metrics.infrastructure.pages.databaseMetrics.azure import azureDbMetics
 from azure.mgmt.resourcegraph import ResourceGraphClient
 from azure.identity import DefaultAzureCredential, AzureCliCredential, ManagedIdentityCredential,ClientSecretCredential
 from flask import jsonify

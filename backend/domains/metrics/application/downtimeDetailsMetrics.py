@@ -1,19 +1,14 @@
-from flask import Blueprint, request, jsonify
 import json
 import pandas
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 from shared.dataBase import queryDw, connectToDw_AADpwd, insert_data, exceptioninfo
 
-from shared.appinsights_logger import log_performance, error_response
+from shared.appinsightsLogger import error_response
 
 
-downtimeDetails = Blueprint('downtimeDetails', __name__)
-
-@downtimeDetails.route('/api/downtimeEvents', methods=['POST'])
-@log_performance()
-def get_change_incident_events():
+def get_change_incident_events(dataPost={}):
     try:
-        dataPost = request.get_json() or {}
+        dataPost = dataPost or {}
         hours = int(dataPost.get('hours', 24))
         eventType = dataPost.get('eventType')   # "Change", "Major Incident", or "Service Health"
 

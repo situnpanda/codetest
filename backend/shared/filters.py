@@ -3,8 +3,8 @@ import pandas
 import numpy
 from shared.variables import globalVariables
 from flask import jsonify
-from shared.appinsights_logger import error_response
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.appinsightsLogger import error_response
+from shared.logAnalytics import queryInLogAnalytics
 import os
 import json
 # File s with Cached Data
