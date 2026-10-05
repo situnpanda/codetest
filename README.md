@@ -1,4 +1,4 @@
-# 📌 BEPEC Memory Chatbot
+# 📌 Memory Chatbot
 
 A Streamlit chatbot powered by Google Gemini and LangChain, with conversation memory that summarizes older turns to avoid context window blow-up.
 
