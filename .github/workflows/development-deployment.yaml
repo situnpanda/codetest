@@ -53,6 +53,7 @@ jobs:
         id: backend-build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
+          context: backend
           file: backend/Dockerfile
           push: true
           tags: ${{ env.IMAGE_BASE }}/itelemetry-backend:${{ env.IMAGE_TAG }}
@@ -63,6 +64,7 @@ jobs:
         id: frontend-build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
+          context: frontend
           file: frontend/Dockerfile
           push: true
           tags: ${{ env.IMAGE_BASE }}/itelemetry-frontend:${{ env.IMAGE_TAG }}
