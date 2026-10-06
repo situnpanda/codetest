@@ -17,8 +17,8 @@ from shared.appinsightsLogger import log_dependency
 def connectToLogAnlytics():
     
     #credential = ManagedIdentityCredential(client_id='015ad614-f9a5-4333-83b4-b71c01c393d8')
-    credential = AzureCliCredential()
-    # credential = DefaultAzureCredential()
+    # credential = AzureCliCredential()
+    credential = DefaultAzureCredential()
     client = LogsQueryClient(credential)
     return client
 

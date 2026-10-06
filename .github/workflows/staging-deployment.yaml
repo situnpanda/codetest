@@ -1,38 +1,59 @@
+# Staging Promotion
+# -----------------
+# Promotes an ALREADY-BUILT image to staging. No image is built here.
+# Run manually (workflow_dispatch). By default it promotes the exact tag that is
+# currently deployed in dev (read from values-dev.yaml); you may override it with
+# an explicit image_tag input.
+#
+# Approval model (GitOps / Option 2): this workflow does NOT push to the
+# helmcharts branch directly. It opens a Pull Request that updates
+# values-stag.yaml. A reviewer (enforced by CODEOWNERS on the helmcharts branch)
+# must approve + merge the PR; merging is what deploys to staging.
 name: Staging Deployment
 
 on:
-  push:
-    branches: [ "Staging" ]
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to promote (blank = promote the tag currently in dev)"
+        required: false
+        type: string
 
 permissions:
   contents: write
+  pull-requests: write
 
 env:
   REGISTRY: artifactory.wu2.cloud.providence.org
   IMAGE_BASE: artifactory.wu2.cloud.providence.org/docker-itelemetryplatformengineering
-  ENVIRONMENT: staging
   HELM_BRANCH: helmcharts
-  VALUES_FILE: helmcharts/values-stag.yaml
+  TARGET_VALUES: helmcharts/values-stag.yaml
+  SOURCE_VALUES: helmcharts/values-dev.yaml
 
 jobs:
-  build:
+  promote:
     runs-on: prov-wu2-ubuntu24-arty-toolbox-toolset1-v3
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-
     steps:
-      - name: Checkout Source Code
+      - name: Checkout Helm Branch
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
+          ref: ${{ env.HELM_BRANCH }}
           fetch-depth: 0
 
-      - name: Format Image Tag
+      - name: Resolve Image Tag
+        # Use the supplied tag, else fall back to the tag currently running in dev.
         run: |
-          date=$(date +%Y%m%d)
-          short_sha=$(echo ${{ github.sha }} | cut -c1-7)
-          IMAGE_TAG="${{ env.ENVIRONMENT }}-v${{ github.run_number }}-${date}-${short_sha}"
-          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
-          echo "Generated tag: ${IMAGE_TAG}"
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(grep -m1 'tag:' ./${{ env.SOURCE_VALUES }} | awk '{print $2}' | tr -d '"')
+            echo "No tag supplied; promoting the tag currently in dev: ${TAG}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::Could not resolve an image tag to promote."
+            exit 1
+          fi
+          echo "IMAGE_TAG=${TAG}" >> $GITHUB_ENV
+          echo "Promoting tag: ${TAG}"
 
       - name: Login to JFrog Artifactory
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -41,35 +62,32 @@ jobs:
           username: sp-itelemetryplatformengineering-publisher
           password: "${{ secrets.JFROG_TOKEN_SP }}"
 
-      - name: Build and Push Backend Image
-        id: backend-build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
-          file: backend/Dockerfile
-          push: true
-          tags: ${{ env.IMAGE_BASE }}/itelemetry-backend:${{ env.IMAGE_TAG }}
-          cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-backend:cache
-          cache-to: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-backend:cache,mode=max
-
-      - name: Build and Push Frontend Image
-        id: frontend-build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
-          file: frontend/Dockerfile
-          push: true
-          tags: ${{ env.IMAGE_BASE }}/itelemetry-frontend:${{ env.IMAGE_TAG }}
-          cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-frontend:cache
-          cache-to: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-frontend:cache,mode=max
-
-      - name: Update Helm Charts
-        if: steps.backend-build.outcome == 'success' && steps.frontend-build.outcome == 'success'
+      - name: Verify Images Exist (promote, never rebuild)
         run: |
-          git fetch origin ${{ env.HELM_BRANCH }}
-          git checkout ${{ env.HELM_BRANCH }}
-          sed -i -e 's/tag: .*/tag: '"${{ env.IMAGE_TAG }}"'/' ./${{ env.VALUES_FILE }}
-          echo "git diff"
-          git diff
-          git config user.name "workflow (triggered by $(git log -n 1 --format=%ae))"
-          git config user.email "$(git log -n 1 --format=%ae)"
-          git add ./${{ env.VALUES_FILE }}
-          git diff-index --quiet HEAD || git commit -m "Update ${{ env.ENVIRONMENT }} images to ${{ env.IMAGE_TAG }}"
-          git push origin ${{ env.HELM_BRANCH }}
-          echo "Image tag updated to ${{ env.IMAGE_TAG }}"
+          echo "Verifying backend + frontend images exist for tag ${IMAGE_TAG}..."
+          docker manifest inspect ${{ env.IMAGE_BASE }}/itelemetry-backend:${IMAGE_TAG} > /dev/null
+          docker manifest inspect ${{ env.IMAGE_BASE }}/itelemetry-frontend:${IMAGE_TAG} > /dev/null
+          echo "OK: both images exist for tag ${IMAGE_TAG}"
+
+      - name: Open Staging Promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="promote/staging-${IMAGE_TAG}"
+          git config user.name "itelemetry-promotion-bot"
+          git config user.email "itelemetry-promotion-bot@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          sed -i -e 's/tag: .*/tag: '"${IMAGE_TAG}"'/' ./${{ env.TARGET_VALUES }}
+          git add ./${{ env.TARGET_VALUES }}
+          if git diff --cached --quiet; then
+            echo "Staging is already on ${IMAGE_TAG}; nothing to promote."
+            exit 0
+          fi
+          git commit -m "Promote ${IMAGE_TAG} to staging"
+          git push --force-with-lease origin "$BRANCH"
+          gh pr create \
+            --base "${{ env.HELM_BRANCH }}" \
+            --head "$BRANCH" \
+            --title "Promote ${IMAGE_TAG} -> staging" \
+            --body "Promotes the already-built image \`${IMAGE_TAG}\` to **staging** by updating \`values-stag.yaml\`. No rebuild. Merging this PR deploys to staging." \
+            || echo "A PR for ${BRANCH} may already exist; updated the branch."

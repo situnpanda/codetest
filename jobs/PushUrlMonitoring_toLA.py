@@ -99,9 +99,16 @@ def pingCheck(entry):
         )
         status_code = response.status_code
         reason = response.reason or ""
+        # 401/403 mean the server is UP and responding — it is just requiring
+        # authentication/authorization. For availability monitoring that is a
+        # healthy signal, so treat them as "Ok".
+        AUTH_PROTECTED_CODES = {401, 403}
         if 200 <= status_code < 400:
             status = "Ok"
             status_message = f"URL is up and returning {status_code} {reason}".strip()
+        elif status_code in AUTH_PROTECTED_CODES:
+            status = "Ok"
+            status_message = f"URL is up but returning {status_code}".strip()
         else:
             status = "Error"
             status_message = f"URL returned {status_code} {reason}".strip()
