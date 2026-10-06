@@ -2,16 +2,18 @@
 
 This document defines how we branch, review, build, and deploy code using a
 **pure trunk-based** strategy with **build-once / promote-the-same-image**
-delivery and **GitOps PR-gated promotions**, on top of **GitHub Actions** +
-**Argo CD**.
+delivery and **staged, approval-gated deployments**, on top of a single
+**GitHub Actions** pipeline + **Argo CD**.
 
 > TL;DR: Work on a **short-lived** `feature/*` branch → PR into `main` (CodeQL +
-> secret push-protection + review must pass) → merge. Merging **builds the image
-> once** and auto-deploys it to **dev**. The *same* image is then promoted to
-> **staging** and **production** by opening a Pull Request against the
-> `helmcharts` branch; a Code-Owner approves + merges that PR, and **Argo CD**
-> rolls the environment. No image is ever rebuilt per environment. Releases and
-> hotfixes are **git tags** on `main`.
+> secret push-protection + review must pass) → merge. Merging triggers one
+> pipeline that **builds the image once** and deploys it through **dev →
+> staging → production** in sequence. Dev is automatic; **staging and
+> production each pause for a human approval** (GitHub Environment required
+> reviewers). Each stage writes the *same* image tag into that environment's
+> Helm values file on the `helmcharts` branch, and **Argo CD** rolls the
+> environment. No image is ever rebuilt per environment. Releases and hotfixes
+> are **git tags** on `main`.
 
 ---
 
@@ -26,14 +28,13 @@ three environments exist as Helm value files on the **`helmcharts` branch**:
    releasable. No `develop`, `staging`, or `production` branches.
 2. **Build once, promote the same artifact.** The image is built a single time
    when a commit lands on `main`, tagged with an **environment-neutral,
-   immutable tag** `v<run>-<date>-<sha>`. That exact tag is what runs in dev,
-   then staging, then prod — never rebuilt.
+   immutable tag** `release-<dd.mm.yy>-<sha>`. That exact tag is what runs in
+   dev, then staging, then prod — never rebuilt.
 3. **Environments are driven by Helm values, not branches.** "Deploy" =
    change the `image.tag` in an env's values file. Argo CD watches `helmcharts`
    and applies whatever tag is written there.
-4. **Promotion is a reviewed PR.** Staging/prod values only change through a
-   Pull Request that a Code-Owner approves and merges. That merge **is** the
-   approval gate.
+4. **Promotion is gated by an environment approval.** Staging and production
+   each pause until a required reviewer approves the deployment job.
 5. **Releases are tags.** `v1.4.0`, `v1.4.1` tagged on `main` — no release
    branch.
 
@@ -43,15 +44,14 @@ three environments exist as Helm value files on the **`helmcharts` branch**:
 
 | Branch        | Purpose                                              | Who writes to it     |
 | ------------- | ---------------------------------------------------- | -------------------- |
-| `main`        | Single source of truth. Always releasable. Builds the image + auto-deploys dev. | Merge from PRs only |
+| `main`        | Single source of truth. Always releasable. Triggers the deployment pipeline. | Merge from PRs only |
 | `feature/*`   | One short-lived change.                              | The author           |
-| `helmcharts`  | GitOps config: `values-dev/stag/prod.yaml` with the live image tag per env. | CI (dev) + promotion PRs |
+| `helmcharts`  | GitOps config: `values-dev/stag/prod.yaml` with the live image tag per env. | The pipeline (deploy jobs) |
 
 **Naming conventions**
 
 - `feature/<ticket>-<short-desc>` — e.g. `feature/ITEL-142-network-drilldown`
-- Promotion branches (created by the workflows): `promote/staging-<tag>`,
-  `promote/production-<tag>`.
+- `hotfix/<ticket>-<short-desc>` for urgent production fixes.
 
 **Trunk-based rules for `feature/*` branches**
 
@@ -63,64 +63,65 @@ three environments exist as Helm value files on the **`helmcharts` branch**:
 
 ## 3. The image tag (build-once identity)
 
-The **development** workflow is the only one that builds. It tags both images
-with a single shared tag:
+The `build` job is the only one that builds. It tags both images with a single
+shared tag:
 
 ```
-v<run_number>-<YYYYMMDD>-<short_sha>      e.g.  v128-20261006-abc1234
+release-<dd.mm.yy>-<short_sha>      e.g.  release-06.10.26-abc1234
 ```
 
 - Environment-neutral (no `dev-`/`stag-`/`prod-` prefix) so the **same** tag can
   move across environments unchanged.
 - Immutable — a given tag always refers to the same bytes in Artifactory.
-- Promotion never rebuilds; it only repoints an env's values file at an existing
-  tag (verified with `docker manifest inspect`).
+- Promotion never rebuilds; each deploy stage only repoints an env's values file
+  at this existing tag (verified first with `docker manifest inspect`).
 
 ---
 
-## 4. The workflows
+## 4. The pipeline
 
-All live in `.github/workflows/` (iTelemetry repo). `helmcharts` is a **branch of
-the same repo**, so the default `GITHUB_TOKEN` can push to it and open PRs.
+Everything lives in a **single workflow**,
+[`.github/workflows/deploy.yaml`](../.github/workflows/deploy.yaml). `helmcharts`
+is a **branch of the same repo**, so the default `GITHUB_TOKEN` can push to it.
 
-| Workflow | Trigger | What it does |
-|----------|---------|--------------|
-| [`development-deployment.yaml`](../.github/workflows/development-deployment.yaml) | push to `main` | Builds backend + frontend **once** (tag `v<run>-<date>-<sha>`), pushes to Artifactory, auto-updates `values-dev.yaml` → Argo deploys **dev**. |
-| [`staging-deployment.yaml`](../.github/workflows/staging-deployment.yaml) | manual (`workflow_dispatch`) | **No build.** Resolves the tag (input, or the one currently in dev), verifies the images exist, opens a **PR** updating `values-stag.yaml`. |
-| [`production-deployment.yaml`](../.github/workflows/production-deployment.yaml) | manual (`workflow_dispatch`) | **No build.** Resolves the tag (input, or the one currently in staging), verifies the images exist, opens a **PR** updating `values-prod.yaml`. |
+| Job | Depends on | Gate | What it does |
+|-----|-----------|------|--------------|
+| `build` | — | — | Builds backend + frontend **once** (tag `release-<dd.mm.yy>-<sha>`), pushes to Artifactory, exposes the tag as a job output. |
+| `deploy-dev` | `build` | none (automatic) | Writes the tag into `values-dev.yaml` → Argo deploys **dev**. |
+| `deploy-staging` | `deploy-dev` | **`staging` environment approval** | Verifies the images exist, writes the **same** tag into `values-stag.yaml` → Argo deploys **staging**. |
+| `deploy-prod` | `deploy-staging` | **`production` environment approval** | Verifies the images exist, writes the **same** tag into `values-prod.yaml` → Argo deploys **production**. |
 
-The promotion workflows take an optional `image_tag` input. Left blank, staging
-promotes **the tag currently in dev**, and production promotes **the tag
-currently in staging** — so by default you always move the validated artifact one
-step forward.
+Because every deploy job reads the tag from `needs.build.outputs.image_tag`,
+staging and production always deploy the **exact image dev validated** — there is
+no separate tag input and no rebuild.
 
 ---
 
-## 5. Approvals (GitOps PR gate)
+## 5. Approvals (GitHub Environments)
 
-Approval is **code review on the `helmcharts` values files**, enforced by
-[`.github/CODEOWNERS`](https://github.com) on the `helmcharts` branch:
+Approval is configured in the **repo UI**, not in the YAML. The gate comes from
+each job's `environment:` key:
 
-| Values file | Required approver |
-|-------------|-------------------|
-| `values-dev.yaml` | light ownership (CI pushes directly) |
-| `values-stag.yaml` | a release reviewer |
-| `values-prod.yaml` | a release manager |
+1. Repo → **Settings** → **Environments** → create `dev`, `staging`,
+   `production` (names must match the `environment:` values exactly).
+2. On **`staging`** and **`production`**, enable **Required reviewers** and add
+   the people/teams who approve that stage. (Optionally add a **Wait timer** or
+   **Deployment branch** restriction.)
+3. `dev` needs no reviewers — it exists for deployment history/visibility.
 
-On the `helmcharts` branch, protection requires: PR before merge, **review from
-Code Owners**, dismiss stale approvals, no direct pushes.
-
-> **Dev auto-push exception:** the `development-deployment.yaml` workflow pushes
-> to `helmcharts` **directly** (dev is ungated). Because the branch otherwise
-> requires PRs, the CI identity used for that push must be on the ruleset
-> **bypass list** (e.g. a dedicated GitHub App). Staging/prod promotions are
-> **not** on the bypass list, so they always require an approved PR.
+When the pipeline reaches a gated job it **pauses** and shows a *Review
+deployments* prompt; the run only continues after a listed reviewer approves.
 
 Prerequisites checklist:
-- Settings → Actions → General → **Allow GitHub Actions to create and approve
-  pull requests** = ON (promotion PRs need it).
+- Environments `dev`, `staging`, `production` created, with required reviewers on
+  `staging` and `production`.
+- `helmcharts` branch exists with `values-dev.yaml`, `values-stag.yaml`,
+  `values-prod.yaml`, each containing `tag:` lines for backend and frontend.
 - Secret `JFROG_TOKEN_SP` present (build + registry login).
-- Self-hosted runner `prov-wu2-...` online with `docker`, `git`, `gh`.
+- Self-hosted runner `prov-wu2-...` online with `docker` and `git`.
+- If the `helmcharts` branch has protection requiring PRs, the CI identity used
+  by the deploy jobs must be on the ruleset **bypass list** (the jobs push
+  directly).
 
 ---
 
@@ -128,39 +129,45 @@ Prerequisites checklist:
 
 ### Scene 1 — Normal release (happy path)
 ```
-feature ─PR→ main ─build v128─► DEV (auto)
-                     promote ─► PR on values-stag.yaml ─approve/merge─► STAGING (same v128)
-            tag v1.4.0, promote ─► PR on values-prod.yaml ─approve/merge─► PROD (same v128)
+feature ─PR→ main ─build release-06.10.26-abc1234─► DEV (auto)
+                              approve ─► STAGING (same tag)
+            tag v1.4.0,       approve ─► PROD    (same tag)
 ```
 1. PR into `main` (CodeQL + secret-scan + review) → merge.
-2. CI builds `v128` once → `values-dev.yaml` auto-updates → Argo deploys dev.
-3. Run **Staging Deployment** → it opens a PR → reviewer merges → Argo deploys staging with `v128`.
-4. Validate → tag `v1.4.0` on `main` → run **Production Deployment** → release manager merges the PR → Argo deploys prod with the identical `v128`.
+2. Pipeline builds the image once → `deploy-dev` updates `values-dev.yaml` →
+   Argo deploys dev.
+3. `deploy-staging` pauses → a staging reviewer approves → it writes the same tag
+   into `values-stag.yaml` → Argo deploys staging.
+4. Validate → tag `v1.4.0` on `main` → `deploy-prod` pauses → a production
+   reviewer approves → it writes the identical tag into `values-prod.yaml` → Argo
+   deploys prod.
 
 ### Scene 2 — Bug found in **dev**
-Nothing was promoted, so nothing to undo. **Fix forward on `main`** → new build
-`v129` → dev updates. The bad `v128` simply never gets a promotion PR.
+Staging/prod were never approved, so nothing to undo. **Fix forward on `main`** →
+new pipeline run → new build → dev updates. The bad build simply never gets
+staging approval.
 
 ### Scene 3 — Bug found in **staging**
-Prod is untouched. Either:
-- **Roll staging back:** run Staging Deployment with the previous good tag → merge its PR, **or**
-- **Fix forward:** fix on `main` → new tag → dev → promote again. Close the bad promotion PR unmerged.
+Prod is untouched (never approved). **Fix forward:** fix on `main` → new run →
+dev → approve staging again. Don't approve the production stage of the bad run.
 
 ### Scene 4 — **Hotfix** in production
-No release branch — a hotfix is just an urgent fix-forward:
-1. `hotfix/<ticket>` off `main` → fix + regression test → PR → merge. CI builds `v130` → dev.
-2. Smoke-check dev → promote to staging (PR, merge) → validate.
-3. Tag `v1.4.1` on `main` → promote to production (PR, release-manager merge).
+No release branch — a hotfix is an urgent fix-forward:
+1. `hotfix/<ticket>` off `main` → fix + regression test → PR → merge. Pipeline
+   builds a new image → dev.
+2. Approve staging → validate.
+3. Tag `v1.4.1` on `main` → approve production.
 
 ### Scene 5 — Emergency **rollback** of production
-The previous image is still in Artifactory — no rebuild. Run **Production
-Deployment** with the last known-good tag (e.g. `v127`); merge the one-line PR →
-Argo rolls prod back in minutes. Then fix forward via Scene 4.
+The previous image is still in Artifactory — no rebuild. Re-run the pipeline for
+the last known-good commit (or manually set the previous tag in
+`values-prod.yaml`) and approve prod; Argo rolls prod back in minutes. Then fix
+forward via Scene 4.
 
 ### Scene 6 — Multiple people at once
 Everyone merges small PRs into `main`; **dev always reflects the newest commit**.
-Pick the validated tag to promote. Unfinished work stays dark via vertical
-slicing / branch-by-abstraction (no feature flags — see §8).
+Promote the run whose build you validated. Unfinished work stays dark via
+vertical slicing / branch-by-abstraction (no feature flags — see §8).
 
 ### Scene 7 — What is running where
 - The **tag** (`v1.4.0`) says the released version.
@@ -175,8 +182,8 @@ slicing / branch-by-abstraction (no feature flags — see §8).
 |--------|-----------|--------|
 | Push to `feature/*` | Lint + unit tests + build | Fast feedback |
 | **PR → `main`** | Full suite + build + **CodeQL** + secret push-protection | **Required** — blocks merge |
-| Promotion PR (stag/prod) | `docker manifest inspect` (image-exists check) + Code-Owner review | Blocks promoting a non-existent image / unapproved change |
-| Merge of promotion PR | Argo CD sync | Deploys the env |
+| `deploy-staging` / `deploy-prod` | `docker manifest inspect` (image-exists check) + **environment approval** | Blocks promoting a non-existent image / unapproved deploy |
+| Deploy job writes values file | Argo CD sync | Deploys the env |
 
 ---
 
@@ -207,7 +214,7 @@ Every merge to `main` must leave it releasable. Keep unfinished work dark by:
 
 ## 10. Definition of "ready to promote" (staging/prod)
 
-- [ ] The image tag exists in Artifactory (the workflow's `manifest inspect` step passed).
+- [ ] The image tag exists in Artifactory (the deploy job's `manifest inspect` step passed).
 - [ ] The source environment (dev for staging; staging for prod) was validated.
-- [ ] The promotion PR is approved by the required Code-Owner.
+- [ ] The required environment reviewer approved the deployment.
 - [ ] For production: a release tag `vX.Y.Z` has been cut on `main`.

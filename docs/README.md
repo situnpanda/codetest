@@ -14,7 +14,7 @@ This folder contains the documentation for the **iTelemetry** (CRCA Services) pl
 | [jobs.md](jobs.md) | Batch jobs, scheduling, and how they resolve backend modules |
 | [testing.md](testing.md) | Test layout, running tests, and conventions |
 | [local-development.md](local-development.md) | Running the backend, frontend, and jobs locally |
-| [branching-strategy.md](branching-strategy.md) | Pure trunk-based branching, build-once image promotion, and GitOps PR-gated deployments (dev → staging → prod) |
+| [branching-strategy.md](branching-strategy.md) | Pure trunk-based branching, build-once image, and a single approval-gated pipeline (dev → staging → prod) |
 
 ## Repository layout
 

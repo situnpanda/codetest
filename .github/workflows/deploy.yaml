@@ -1,0 +1,197 @@
+name: iTelemetry Deployment
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  REGISTRY: artifactory.wu2.cloud.providence.org
+  IMAGE_BASE: artifactory.wu2.cloud.providence.org/docker-itelemetryplatformengineering
+  HELM_BRANCH: helmcharts
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. BUILD (the only job that builds images)
+  # ---------------------------------------------------------------------------
+  build:
+    runs-on: prov-wu2-ubuntu24-arty-toolbox-toolset1-v3
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          fetch-depth: 0
+
+      - name: Format Image Tag
+        id: tag
+        run: |
+          date=$(date +%d.%m.%y)
+          short_sha=$(echo ${{ github.sha }} | cut -c1-7)
+          IMAGE_TAG="release-${date}-${short_sha}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Generated tag: ${IMAGE_TAG}"
+
+      - name: Login to JFrog Artifactory
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: sp-itelemetryplatformengineering-publisher
+          password: "${{ secrets.JFROG_TOKEN_SP }}"
+
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_BASE }}/itelemetry-backend:${{ steps.tag.outputs.image_tag }}
+          cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-backend:cache
+          cache-to: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-backend:cache,mode=max
+
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_BASE }}/itelemetry-frontend:${{ steps.tag.outputs.image_tag }}
+          cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-frontend:cache
+          cache-to: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-frontend:cache,mode=max
+
+  # ---------------------------------------------------------------------------
+  # 2. DEPLOY TO DEV (automatic, after merge to main)
+  # ---------------------------------------------------------------------------
+  deploy-dev:
+    needs: build
+    runs-on: prov-wu2-ubuntu24-arty-toolbox-toolset1-v3
+    environment: dev
+    env:
+      IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+      VALUES_FILE: helmcharts/values-dev.yaml
+    steps:
+      - name: Checkout Helm Branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ env.HELM_BRANCH }}
+          fetch-depth: 0
+
+      - name: Login to JFrog Artifactory
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: sp-itelemetryplatformengineering-publisher
+          password: "${{ secrets.JFROG_TOKEN_SP }}"
+
+      - name: Verify Images Exist
+        run: |
+          echo "Verifying images for tag ${IMAGE_TAG}..."
+          docker manifest inspect ${{ env.IMAGE_BASE }}/itelemetry-backend:${IMAGE_TAG} > /dev/null
+          docker manifest inspect ${{ env.IMAGE_BASE }}/itelemetry-frontend:${IMAGE_TAG} > /dev/null
+          echo "OK: both images exist."
+
+      - name: Update values-dev.yaml
+        run: |
+          git config user.name "itelemetry-deploy-bot"
+          git config user.email "itelemetry-deploy-bot@users.noreply.github.com"
+          sed -i -e 's|tag: .*|tag: '"${IMAGE_TAG}"'|g' ./${{ env.VALUES_FILE }}
+          git add ./${{ env.VALUES_FILE }}
+          if git diff --cached --quiet; then
+            echo "Dev already on ${IMAGE_TAG}; nothing to update."
+            exit 0
+          fi
+          git commit -m "Deploy ${IMAGE_TAG} to dev"
+          git push origin ${{ env.HELM_BRANCH }}
+          echo "Dev image tag set to ${IMAGE_TAG}"
+
+  # ---------------------------------------------------------------------------
+  # 3. DEPLOY TO STAGING (needs dev; waits for approval)
+  # ---------------------------------------------------------------------------
+  deploy-staging:
+    needs: [ build, deploy-dev ]
+    runs-on: prov-wu2-ubuntu24-arty-toolbox-toolset1-v3
+    environment: staging          # <-- configure Required reviewers on this environment
+    env:
+      IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+      VALUES_FILE: helmcharts/values-stag.yaml
+    steps:
+      - name: Checkout Helm Branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ env.HELM_BRANCH }}
+          fetch-depth: 0
+
+      - name: Login to JFrog Artifactory
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: sp-itelemetryplatformengineering-publisher
+          password: "${{ secrets.JFROG_TOKEN_SP }}"
+
+      - name: Verify Images Exist (promote, never rebuild)
+        run: |
+          docker manifest inspect ${{ env.IMAGE_BASE }}/itelemetry-backend:${IMAGE_TAG} > /dev/null
+          docker manifest inspect ${{ env.IMAGE_BASE }}/itelemetry-frontend:${IMAGE_TAG} > /dev/null
+          echo "OK: both images exist for tag ${IMAGE_TAG}"
+
+      - name: Update values-stag.yaml
+        run: |
+          git config user.name "itelemetry-deploy-bot"
+          git config user.email "itelemetry-deploy-bot@users.noreply.github.com"
+          sed -i -e 's|tag: .*|tag: '"${IMAGE_TAG}"'|g' ./${{ env.VALUES_FILE }}
+          git add ./${{ env.VALUES_FILE }}
+          if git diff --cached --quiet; then
+            echo "Staging already on ${IMAGE_TAG}; nothing to update."
+            exit 0
+          fi
+          git commit -m "Promote ${IMAGE_TAG} to staging"
+          git push origin ${{ env.HELM_BRANCH }}
+          echo "Staging image tag set to ${IMAGE_TAG}"
+
+  # ---------------------------------------------------------------------------
+  # 4. DEPLOY TO PROD (needs staging; waits for approval)
+  # ---------------------------------------------------------------------------
+  deploy-prod:
+    needs: [ build, deploy-staging ]
+    runs-on: prov-wu2-ubuntu24-arty-toolbox-toolset1-v3
+    environment: production        # <-- configure Required reviewers on this environment
+    env:
+      IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+      VALUES_FILE: helmcharts/values-prod.yaml
+    steps:
+      - name: Checkout Helm Branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ env.HELM_BRANCH }}
+          fetch-depth: 0
+
+      - name: Login to JFrog Artifactory
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: sp-itelemetryplatformengineering-publisher
+          password: "${{ secrets.JFROG_TOKEN_SP }}"
+
+      - name: Verify Images Exist (promote, never rebuild)
+        run: |
+          docker manifest inspect ${{ env.IMAGE_BASE }}/itelemetry-backend:${IMAGE_TAG} > /dev/null
+          docker manifest inspect ${{ env.IMAGE_BASE }}/itelemetry-frontend:${IMAGE_TAG} > /dev/null
+          echo "OK: both images exist for tag ${IMAGE_TAG}"
+
+      - name: Update values-prod.yaml
+        run: |
+          git config user.name "itelemetry-deploy-bot"
+          git config user.email "itelemetry-deploy-bot@users.noreply.github.com"
+          sed -i -e 's|tag: .*|tag: '"${IMAGE_TAG}"'|g' ./${{ env.VALUES_FILE }}
+          git add ./${{ env.VALUES_FILE }}
+          if git diff --cached --quiet; then
+            echo "Prod already on ${IMAGE_TAG}; nothing to update."
+            exit 0
+          fi
+          git commit -m "Promote ${IMAGE_TAG} to production"
+          git push origin ${{ env.HELM_BRANCH }}
+          echo "Production image tag set to ${IMAGE_TAG}"
