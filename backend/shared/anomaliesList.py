@@ -1,5 +1,5 @@
 from shared.dataBase import queryDw, connectToDw
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 from shared.keyVault import connectToKeyVault
 from shared.variables import globalVariables
 from datetime import datetime, timedelta

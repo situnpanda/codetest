@@ -15,9 +15,9 @@ sys.path.append(str(root))
 
 from flask import Blueprint, jsonify, request
 from shared.dataBase import insertDw, queryDw, connectToDw_AADpwd, insert_data, exceptioninfo, connectToDw_AADpwd_Write
-from shared.utils.sessionTokenAction import validateToken
-from shared.utils.userActivityLogging import log_user_activity
-from shared.appinsights_logger import log_performance, error_response
+from shared.sessionTokenAction import validateToken
+from shared.userActivityLogging import log_user_activity
+from shared.appinsightsLogger import log_performance, error_response
 import pandas as pd
 import numpy as np
 import base64

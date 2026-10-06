@@ -6,7 +6,7 @@ from azure.kusto.data import KustoClient, KustoConnectionStringBuilder, DataForm
 from azure.kusto.ingest import IngestionProperties, IngestionMappingKind, KustoStreamingIngestClient, QueuedIngestClient
 from azure.kusto.data.helpers import dataframe_from_result_table
 
-from shared.appinsights_logger import log_dependency
+from shared.appinsightsLogger import log_dependency
 
 def connectToADX(cluster):
     count = 0

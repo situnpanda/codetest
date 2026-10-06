@@ -1,10 +1,10 @@
 from shared.dataBase import queryDw, insert_data, exceptioninfo, connectToDw, connectToDw_SqlServerPwd, connectToDw_AADpwd, openConnection
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 from shared.keyVault import connectToKeyVault
 from shared.variables import globalVariables
-from domains.metrics.infrastructure.Pages.ServiceStatus.OnPrem import onPremserviceStatus
-from domains.metrics.infrastructure.Pages.ServiceStatus.UrlS import urlStatus
-from domains.metrics.infrastructure.Pages.ServiceStatus.Azure import azureServiceStatus
+from domains.metrics.infrastructure.pages.serviceStatus.onPrem import onPremserviceStatus
+from domains.metrics.infrastructure.pages.serviceStatus.urlS import urlStatus
+from domains.metrics.infrastructure.pages.serviceStatus.azure import azureServiceStatus
 from shared.filters import filtersData, filtersData_SubRg
 from datetime import datetime, timedelta
 import pytz
@@ -13,7 +13,7 @@ import os
 import time
 import numpy, pyodbc
 from flask import jsonify
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 import json
 
 serviceData = {

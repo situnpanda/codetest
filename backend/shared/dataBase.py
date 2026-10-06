@@ -10,7 +10,7 @@ import time
 import struct
 from azure.identity import DefaultAzureCredential,AzureCliCredential
 
-from shared.appinsights_logger import log_dependency
+from shared.appinsightsLogger import log_dependency
 
 # Disable ODBC Driver-level connection pooling.
 # In AKS, Linkerd proxy and Azure SQL's idle timeout (~30 min) silently kill pooled TCP

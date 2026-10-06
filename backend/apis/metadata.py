@@ -1,4 +1,13 @@
+"""Metadata HTTP route slice (consolidated).
+
+Web/routing layer for onboarding/metadata, governance, user-to-support-group
+mapping, filters, application-health summary, hospital list, and map-view
+endpoints. Business logic lives in ``domains.metadata``, ``domains.metrics.*``
+and ``shared.*``; this module only wires HTTP requests to those functions.
+"""
+import os
 import json
+import numpy
 import pandas
 from collections import defaultdict
 from datetime import datetime
@@ -6,10 +15,14 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 
 from shared.dataBase import connectToDw_AADpwd, queryDw
+from shared.filters import filtersData
+from shared.hospitalList import hospitalList, hospitalListCount
+from shared.cachePaths import userToSupportGroupMappingJsonPath
 from domains.metadata.getComponentList import serviceList, serviceList_new, urlList, customRequirementList, dbList, dbList_new, fileShareList_new
 from domains.metadata.getAppSummary import appSummary
 from domains.metadata.updateOnboardedData import updateServicesData, updateUrlData, updateCustomRequirementData
 from domains.metrics.infrastructure.azureGovernance import tagCompliance_Subscription, tagCompliance_ServerName
+from domains.metrics.application.mapViewTelemetry import mapView
 
 metadata_bp = Blueprint("metadata", __name__)
 
@@ -76,7 +89,7 @@ def appFamilyDetails():
     # Generate graph data for the last 12 months in the correct format
     graph_data = {}
 
-    return jsonify({"tableData": table_data, "graphData": graph_data})
+    return {"status": 200, "Data": {"tableData": table_data, "graphData": graph_data}, "meta": {}, "error": None}
 
 
 # alert manager historical data for all app families
@@ -112,7 +125,7 @@ def getHistoricalDataForAllAppFamilies():
 
     print("The table data is:")     
     print(table_data)
-    return jsonify({"tableData": table_data})
+    return {"status": 200, "Data": {"tableData": table_data}, "meta": {}, "error": None}
 
 
 @metadata_bp.route('/api/updateOnboardedData', methods=["POST"])
@@ -131,7 +144,7 @@ def updateOnboardedData():
     elif(dataCategory=="custom requirement"):
         updateCustomRequirementData(updateCategory, data, userName)
     # print("Hello")
-    return "", 200
+    return {"status": 200, "Data": "", "meta": {}, "error": None}, 200
 
 
 @metadata_bp.route('/api/governance', methods=['GET'])
@@ -162,9 +175,7 @@ def load_json_file():
         print(df)
     
     
-    logsData= {}
-    logsData["tagComplianceData"] = df.to_json()
-    return jsonify(logsData)
+    return {"status": 200, "Data": df.to_json(), "meta": {}, "error": None}
 
 
 @metadata_bp.route('/api/getOnboardingList', methods=["POST"])
@@ -191,7 +202,7 @@ def getList():
         logData["metaData"] = fileShareList_new(appFamily, appCI)
     
     logData["metaData"] = logData["metaData"].to_json()
-    return jsonify(logData)
+    return {"status": 200, "Data": logData["metaData"], "meta": {}, "error": None}
 
 
 @metadata_bp.route('/api/getOnboardingSummary', methods=["GET"])
@@ -201,4 +212,191 @@ def getAppOnboardingSummary():
     data = appSummary()
     print(data)
     logData["appOnboardingSummary"] = data.to_json()
-    return jsonify(logData)
+    return {"status": 200, "Data": data.to_json(), "meta": {}, "error": None}
+
+
+@metadata_bp.route('/api/userToSupportGroupMapping', methods=["POST"])
+def userSupportGroupMapping():
+    print("came into the functino of user group")
+    dataPost = request.get_json()
+
+    supportGroupPreference = dataPost.get('supportGroupCheck')
+
+    if(supportGroupPreference):
+        #print("the support group preference is", supportGroupPreference)
+        with open(userToSupportGroupMappingJsonPath, "r") as json_file:
+            mapping_data = json.load(json_file)
+
+        support_groups = list({
+            record.get("SupportGroup")
+            for record in mapping_data
+            if record.get("SupportGroup")
+        })    
+
+        #print("The support groups are", support_groups)
+        return {"status": 200, "Data": support_groups, "meta": {}, "error": None},200  #gives the list of all support groups
+
+    mailAdd = dataPost.get('mailAdd')
+    #mailAdd = "sunitha.bist@providence.org"
+    print("The mail address in the dataPost is", mailAdd)
+    
+    mailAdd = mailAdd.lower()
+
+    connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
+    queryRbacAdmin = f"""select HomePageAdmins from RbacAdmins where HomePageAdmins like lower('{mailAdd}')"""
+    emails_list = queryDw(connectToCrcaMonitoring, queryRbacAdmin)
+
+    if emails_list:
+        return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": "ARIA,Wellsky"}, "meta": {}, "error": None},200
+    
+    #user prefernece query
+    userPreferenceQuery = f"""select userEmail, SupportGroups, alertManager, AppValidation from UserPreferenceTable where userEmail like lower('{mailAdd}')"""
+
+    #print("The user preference query is ", userPreferenceQuery)
+    userPreferenceList = queryDw(connectToCrcaMonitoring, userPreferenceQuery)
+    #print("The user prefernce list is ", userPreferenceList)
+    #connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
+    if os.path.exists(userToSupportGroupMappingJsonPath):
+        # print("The path exists")
+        with open(userToSupportGroupMappingJsonPath, "r") as json_file:
+            mapping_data = json.load(json_file)
+        # Extract only support group names for the given email
+        support_groups = list({
+            record.get("SupportGroup")
+            for record in mapping_data
+            if str(record.get("Email", "")).lower() == mailAdd and record.get("SupportGroup")
+        })  
+        sql_support_groups = []
+        app_validation_value = "NoAccess"  
+
+        if userPreferenceList and len(userPreferenceList[0]) > 1:
+            sql_support_groups_str = userPreferenceList[0][1]
+            # Get app validation value if it exists (4th column, index 3)
+            if len(userPreferenceList[0]) > 3 and userPreferenceList[0][3]:
+                app_validation_value = userPreferenceList[0][3]
+            
+            #print("The sql support group is", sql_support_groups_str)
+            if sql_support_groups_str == 'All':
+                #print("Came inside the all condition")
+                return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
+            if sql_support_groups_str:
+                sql_support_groups = [grp.strip() for grp in sql_support_groups_str.split(',') if grp]
+                if("IS Applications - Women and Children" in sql_support_groups_str):
+                    sql_support_groups = [grp for grp in sql_support_groups if grp != "IS Applications - Women and Children" or "Case Management" not in grp]
+                    sql_support_groups.append("IS Applications - Women and Children, Case Management")
+                # exception_support_group = "IS Applications - Women and Children, Case Management"
+                # if exception_support_group in sql_support_groups_str:
+                #     sql_support_groups_str = sql_support_groups_str.replace(exception_support_group, "").replace(",,", ",").strip(",")
+ 
+        # Combine with existing list from JSON
+        combined_support_groups = list(set(support_groups + sql_support_groups))
+        all_support_groups = list({
+            record.get("SupportGroup")
+            for record in mapping_data
+            if record.get("SupportGroup")
+        })
+        #print("Final combined support groups are:", combined_support_groups)
+        if set(combined_support_groups) == set(all_support_groups):
+            #print("Support groups match exactly.")
+            return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
+
+        if combined_support_groups:
+            return {"status": 200, "Data": {"supportGroups": combined_support_groups, "appValidation": app_validation_value}, "meta": {}, "error": None}, 200  
+        
+        return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
+    
+    else:
+        app_validation_value = "NoAccess"
+        if userPreferenceList and len(userPreferenceList[0]) > 3 and userPreferenceList[0][3]:
+            app_validation_value = userPreferenceList[0][3]
+        return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
+    
+    return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": "NoAccess"}, "meta": {}, "error": None},200
+
+
+@metadata_bp.route("/api/filters", methods = ["POST"])
+def filters():
+    #Get Data from Post API
+    dataPost = request.get_json()
+    print(dataPost)
+    
+    if("filterType" in dataPost):
+        if(dataPost['filterType']=="dataFrame"):
+            filterDataDF = filtersData(dataPost, "dataFrame")
+            return {"status": 200, "Data": filterDataDF.to_json(), "meta": {}, "error": None}
+    else:
+        filterData = filtersData(dataPost, "filter")
+    return {"status": 200, "Data": filterData, "meta": {}, "error": None}
+
+
+@metadata_bp.route('/api/applicationHealthSummary', methods = ["GET"])
+def applicationHealthSummary():
+    
+    appCI = request.args.get('appCI', "")
+    appFamily = request.args.get('appFamily', "")
+    supportGroup = request.args.get('supportGroup', "")
+    
+    sqlQuery = f""" Select ahs.[Application CI]
+      ,ahs.[Server Health]
+      ,ahs.[Services Health]
+      ,ahs.[Interfaces Health]
+      ,ahs.[File Storage Health]
+      ,ahs.[Application Family]
+      ,ahs.[Support Group]
+      ,ahs.[Database Health]
+      ,al.[Recovery Ranking]
+    from [ApplicationHealthPage_Summary] ahs
+    left join [Application List] al
+      on lower(ahs.[Application CI]) = lower(al.[Application CI]) """
+    
+    flag = 0
+    if(appCI!="" and appCI!="'All'"):
+        sqlQuery += f"where ahs.[Application CI] in ({appCI.upper()})"
+        flag = 1
+    elif(appFamily!="" and appFamily!="'All'"):
+        sqlQuery += f"where ahs.[Application Family] in ({appFamily.upper()})"
+        flag = 1
+    elif(supportGroup!="" and supportGroup!="'All'"):
+        sqlQuery += f"where ahs.[Support Group] in ({supportGroup.upper()})"
+        flag = 1
+    
+    if flag==1:
+        sqlQuery += " and ahs.[Last Updated] = (Select MAX([Last Updated]) from [ApplicationHealthPage_Summary])"
+    else:
+        sqlQuery += "where ahs.[Last Updated] = (Select MAX([Last Updated]) from [ApplicationHealthPage_Summary])"
+    
+    connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
+    print(datetime.now())
+    print(sqlQuery)
+    print(datetime.now())
+    
+    result = queryDw(connectToCrcaMonitoring, sqlQuery)
+    df = pandas.DataFrame(numpy.array(result), columns=["Application CI", "Server Health", "Services Health", "Interfaces Health", "File Storage Health", "Application Family", "Support Group", "Database Health", "Recovery Ranking"])
+    for i in ["Server Health", "Services Health", "Interfaces Health", "File Storage Health", "Database Health"]:
+        print(i)
+        df[i] = df[i].apply(lambda x: json.loads(x) if x!="" else {})
+    logsData = dict()
+    logsData["Application Summary"] = df.to_json()
+    print(datetime.now())
+    return {"status": 200, "Data": df.to_json(), "meta": {}, "error": None}
+
+
+@metadata_bp.route('/api/hospitalList', methods=["GET"])
+def hospitalData():
+    typeOfData = request.args.get('queryType')
+
+    connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
+    if(typeOfData=="list"):
+        hopsitalList_df = hospitalList(connectToCrcaMonitoring)
+    else:
+        hopsitalList_df = hospitalListCount(connectToCrcaMonitoring)
+    logsData = dict()
+    logsData["hospitalData"] = hopsitalList_df.to_json()
+    return {"status": 200, "Data": hopsitalList_df.to_json(), "meta": {}, "error": None}
+
+
+@metadata_bp.route('/api/mapView')
+def mapViewTelemetry():
+    region = request.args.get('region')
+    mapViewData = mapView(region)
+    return {"status": 200, "Data": mapViewData, "meta": {}, "error": None}

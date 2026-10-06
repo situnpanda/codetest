@@ -16,7 +16,7 @@ from azure.core.exceptions import HttpResponseError
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder, DataFormat
 from azure.kusto.ingest import IngestionProperties, IngestionMappingKind, KustoStreamingIngestClient, QueuedIngestClient
 from azure.kusto.data.helpers import dataframe_from_result_table
-from shared.LogAnalytics import connectToLogAnlytics, queryInLogAnalytics
+from shared.logAnalytics import connectToLogAnlytics, queryInLogAnalytics
 import threading
 
 def insertIntoADX(df):

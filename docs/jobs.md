@@ -22,7 +22,7 @@ import sys
 root = Path(__file__).resolve().parents[1] / "backend"
 sys.path.append(str(root))
 
-from domains.metrics.ServerMetricsPerf import getServerPerf
+from domains.metrics.infrastructure.serverMetricsPerf import getServerPerf
 from shared.dataBase import queryDw
 ```
 

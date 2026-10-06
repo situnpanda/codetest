@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'b
 from shared.dataBase import connectToDw_SqlServerPwd, connectToDw_AADpwd,queryDw,insert_data,exceptioninfo
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, AzureCliCredential, ManagedIdentityCredential
-from shared.ADX import connectToADX, readFromADX
+from shared.adx import connectToADX, readFromADX
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 
 SERVICE_HEALTH_SUBSCRIPTIONS = [

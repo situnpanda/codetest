@@ -14,7 +14,7 @@ from azure.identity import AzureCliCredential, ManagedIdentityCredential
 from azure.core.exceptions import HttpResponseError
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder, DataFormat
 from azure.kusto.ingest import IngestionProperties, IngestionMappingKind, KustoStreamingIngestClient, QueuedIngestClient
-from shared.LogAnalytics import connectToLogAnlytics, queryInLogAnalytics
+from shared.logAnalytics import connectToLogAnlytics, queryInLogAnalytics
 from azure.kusto.data.helpers import dataframe_from_result_table
 
 def getMaxTime():

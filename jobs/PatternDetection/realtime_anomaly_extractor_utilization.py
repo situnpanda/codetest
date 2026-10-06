@@ -33,7 +33,7 @@ from datetime import datetime, timedelta, timezone
 root = Path(__file__).resolve().parents[2]
 sys.path.append(str(root))
 
-from shared.ADX import readFromADX
+from shared.adx import readFromADX
 from shared.dataBase import queryDw
 from shared.keyVault import connectToKeyVault
 from azure.identity import AzureCliCredential,ManagedIdentityCredential

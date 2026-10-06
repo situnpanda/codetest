@@ -1,11 +1,11 @@
 from shared.dataBase import connectToDw, queryDw, connectToDw_SqlServerPwdScom, connectToDw_AADpwd,exceptioninfo,insert_data
-from domains.metrics.infrastructure.Pages.ServiceStatus.Azure import processDataFroDurationServices, getGACQuery
+from domains.metrics.infrastructure.pages.serviceStatus.azure import processDataFroDurationServices, getGACQuery
 import pandas
 import numpy
 import pytz
 from datetime import datetime, timedelta
 from flask import jsonify
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 
 def onPremserviceStatus(serviceList, startTime, endTime, aggregate):
     df_onPremService = pandas.DataFrame()

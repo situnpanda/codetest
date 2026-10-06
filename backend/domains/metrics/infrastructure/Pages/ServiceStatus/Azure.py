@@ -3,9 +3,9 @@ import pandas
 import numpy
 import pytz
 from datetime import datetime, timedelta
-from shared.LogAnalytics import queryInLogAnalytics
+from shared.logAnalytics import queryInLogAnalytics
 from flask import jsonify
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 
 def getGACQuery(timeGenerated, hostingType):
     # GACquery = f"""

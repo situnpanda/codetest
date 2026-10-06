@@ -2,7 +2,7 @@ import pandas as pd
 import numpy
 from shared.dataBase import connectToDw_SqlServerPwdScom, queryDw, exceptioninfo,insert_data, connectToDw_AADpwd
 from flask import jsonify
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 
 def onPremCpuUtilization(aggregate, serverName_Cond, timeGenerated,subRg_Cond, threshold):
     #print(f"Threshold value: {threshold}")

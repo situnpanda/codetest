@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'b
 from shared.dataBase import connectToDw, connectToDw_AADpwd, connectToDw_AADpwd_Write,queryDw,connectToDw_SqlServerPwd,exceptioninfo,insert_data
 from shared.filters import filtersData
 from shared.keyVault import connectToKeyVault
-from shared.ADX import connectToADX, readFromADX
+from shared.adx import connectToADX, readFromADX
 from azure.identity import DefaultAzureCredential, AzureCliCredential, ManagedIdentityCredential
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder, DataFormat

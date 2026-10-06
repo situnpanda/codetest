@@ -6,7 +6,7 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend')))
 from shared.dataBase import connectToDw_SqlServerPwd, connectToDw_AADpwd,queryDw,insert_data,exceptioninfo
 from shared.keyVault import connectToKeyVault
-from shared.ADX import connectToADX, readFromADX
+from shared.adx import connectToADX, readFromADX
 from azure.identity import DefaultAzureCredential, AzureCliCredential, ManagedIdentityCredential
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder, DataFormat

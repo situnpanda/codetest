@@ -1,8 +1,16 @@
+# Development Deployment
+# -----------------------
+# Build-once / promote-same-artifact model.
+# This is the ONLY workflow that builds images. It runs on every push to main,
+# builds the backend + frontend ONCE, tags them with a single environment-neutral
+# tag (vRUN-DATE-SHA) and auto-deploys to DEV by updating values-dev.yaml.
+# The exact same tag is later promoted to staging/prod (no rebuild) by the
+# staging-deployment.yaml / production-deployment.yaml promotion workflows.
 name: Development Deployment
 
 on:
   push:
-    branches: [ "Development" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +19,6 @@ permissions:
 env:
   REGISTRY: artifactory.wu2.cloud.providence.org
   IMAGE_BASE: artifactory.wu2.cloud.providence.org/docker-itelemetryplatformengineering
-  ENVIRONMENT: dev
   HELM_BRANCH: helmcharts
   VALUES_FILE: helmcharts/values-dev.yaml
 
@@ -27,10 +34,11 @@ jobs:
           fetch-depth: 0
 
       - name: Format Image Tag
+        # Environment-neutral, immutable tag shared by every environment.
         run: |
           date=$(date +%Y%m%d)
           short_sha=$(echo ${{ github.sha }} | cut -c1-7)
-          IMAGE_TAG="${{ env.ENVIRONMENT }}-v${{ github.run_number }}-${date}-${short_sha}"
+          IMAGE_TAG="v${{ github.run_number }}-${date}-${short_sha}"
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
           echo "Generated tag: ${IMAGE_TAG}"
 
@@ -44,6 +52,7 @@ jobs:
       - name: Build and Push Backend Image
         id: backend-build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
           file: backend/Dockerfile
           push: true
           tags: ${{ env.IMAGE_BASE }}/itelemetry-backend:${{ env.IMAGE_TAG }}
@@ -53,13 +62,14 @@ jobs:
       - name: Build and Push Frontend Image
         id: frontend-build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
           file: frontend/Dockerfile
           push: true
           tags: ${{ env.IMAGE_BASE }}/itelemetry-frontend:${{ env.IMAGE_TAG }}
           cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-frontend:cache
           cache-to: type=registry,ref=${{ env.IMAGE_BASE }}/itelemetry-frontend:cache,mode=max
 
-      - name: Update Helm Charts
+      - name: Deploy to Dev (auto-update values-dev.yaml)
         if: steps.backend-build.outcome == 'success' && steps.frontend-build.outcome == 'success'
         run: |
           git fetch origin ${{ env.HELM_BRANCH }}
@@ -70,6 +80,6 @@ jobs:
           git config user.name "workflow (triggered by $(git log -n 1 --format=%ae))"
           git config user.email "$(git log -n 1 --format=%ae)"
           git add ./${{ env.VALUES_FILE }}
-          git diff-index --quiet HEAD || git commit -m "Update ${{ env.ENVIRONMENT }} images to ${{ env.IMAGE_TAG }}"
+          git diff-index --quiet HEAD || git commit -m "Deploy ${{ env.IMAGE_TAG }} to dev"
           git push origin ${{ env.HELM_BRANCH }}
-          echo "Image tag updated to ${{ env.IMAGE_TAG }}"
+          echo "Dev image tag updated to ${{ env.IMAGE_TAG }}"

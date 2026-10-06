@@ -4,7 +4,7 @@ import numpy as np
 import pytz
 from datetime import datetime
 from flask import jsonify
-from shared.appinsights_logger import error_response
+from shared.appinsightsLogger import error_response
 
 def onPremServerStatus(server_names, df_ServerNameAppCI):
     try:

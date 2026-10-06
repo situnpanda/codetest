@@ -1,34 +1,94 @@
+"""Infrastructure HTTP route slice (consolidated).
+
+Web/routing layer for the ``/api/infrastructureMetrics`` server/database/
+file-storage/citrix perf endpoints plus the server/database/patch/backup/
+environment/event/process/reboot/workstation and azure-metrics endpoints, and
+server/service logs and disk-SKU/server-down operational endpoints. Business
+logic lives in ``domains.metrics.*``; this module only wires HTTP requests to
+those functions and returns the uniform success/error envelope.
+"""
 import os
 import json
 
 import pandas
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request
 
+from shared.appinsightsLogger import log_performance, error_response
 from shared.dataBase import connectToDw_AADpwd, connectToDw_SqlServerPwd, queryDw
-from shared.filters import filtersData, getFiltersFromCache
+from shared.filters import filtersData, getFiltersFromCache, getServerList
 from shared.variables import globalVariables
-from shared.appinsights_logger import error_response
+from domains.metrics.infrastructure.serverMetricsPerf import get_server_perf
+from domains.metrics.infrastructure.databaseMetricsPerf import get_database_perf
+from domains.metrics.infrastructure.fileStorageMetricsPerf import get_file_storage_perf
+from domains.metrics.infrastructure.citrixDataMetrics import get_citrix_perf
+from domains.metrics.application.applicationTelemetry import servicesData, serverDownTimeData
 from domains.metrics.infrastructure.infrastructureTelemetry import (
     databaseMetricData,
     serverStatus,
     PatchComplianceData,
-    ValidationData,
     BackupData,
     server_environment_overview_df,
     windows_events_df,
     serverProcessMetrics_df,
-    appReliability,
-    appExceptions,
     server_reboot_df,
     workstation_Metrics_df,
     azureServerMetrics_CPU_df,
     azureServerMetrics_Memory_df,
     azureServerMetrics_Fileshare_df,
     azureServerMetrics_Disk_df,
+    diskdetails_df,
 )
 
 infrastructure_bp = Blueprint("infrastructure", __name__)
+
+
+@infrastructure_bp.route("/api/infrastructureMetrics/", methods=["GET"])
+def hello():
+    return "Hello"
+
+
+@infrastructure_bp.route("/api/infrastructureMetrics/serverPerfMetrics", methods=["POST"])
+@log_performance()
+def serverPerfMetrics():
+    try:
+        data = request.get_json() or {}
+        return get_server_perf(data)
+    except Exception as ex:
+        return error_response(501, "Failed to fetch server performance metrics", exc=ex)
+
+
+@infrastructure_bp.route("/api/infrastructureMetrics/databasePerfMetrics", methods=["POST"])
+@log_performance()
+def getDatabasePerf():
+    try:
+        data = request.get_json() or {}
+        return get_database_perf(data)
+    except Exception as ex:
+        return error_response(501, "Failed to fetch database performance metrics", exc=ex)
+
+
+@infrastructure_bp.route("/api/infrastructureMetrics/fileStoragePerfMetrics", methods=["POST"])
+@log_performance()
+def getFileStoragePerf():
+    try:
+        data = request.get_json() or {}
+        return get_file_storage_perf(data)
+    except Exception as ex:
+        return error_response(501, "Failed to fetch file storage performance metrics", exc=ex)
+
+
+@infrastructure_bp.route("/api/infrastructureMetrics/citrixPerfMetrics", methods=["POST"])
+@log_performance()
+def citrixPerfMetrics():
+    try:
+        # Accept a JSON body (even though it isn't used right now) so the
+        # contract stays consistent with the other infrastructureMetrics APIs.
+        _ = request.get_json(silent=True) or {}
+        return get_citrix_perf()
+    except Exception as ex:
+        return error_response(500, "Failed to fetch citrix metrics", exc=ex)
+
 
 @infrastructure_bp.route("/api/databaseMetrics", methods=["POST"])
 def databaseMetrics():
@@ -54,6 +114,7 @@ def databaseMetrics():
         print("in Exception DB")
         print(ex)
         return error_response(501, "Failed to fetch database metrics", detail=str(ex), exc=ex)
+
 
 @infrastructure_bp.route('/api/serverStatus', methods = ["POST"])
 def appServerStatus():
@@ -84,6 +145,7 @@ def appServerStatus():
     logsData["ServerStatus"] = server_df.to_json()
     print(datetime.now())
     return {"status": 200, "Data": server_df.to_json(), "meta": {}, "error": None}
+
 
 @infrastructure_bp.route('/api/PatchCompliance', methods=["POST"])
 def azurePatchCompliance():
@@ -139,15 +201,6 @@ def azurePatchCompliance():
 
     return {"status": 200, "Data": logsData["PatchCompliance"], "meta": {}, "error": None}
 
-@infrastructure_bp.route('/api/appValidation', methods=["POST"])
-def appValidation():
-    dataPost = request.get_json()
-    appCI =dataPost.get('appCI',"").strip("'")
-    aggregate =dataPost.get('aggregate',"no")
-    logsData = {}
-    df = ValidationData(aggregate,appCI)
-    logsData = {"appValidation": df.to_json()}
-    return {"status": 200, "Data": df.to_json(), "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/ServerBackup', methods=["POST"])
 def azureServerBackup():
@@ -174,6 +227,7 @@ def azureServerBackup():
         logsData["ServerBackup"] = backup_df.to_json()
 
     return {"status": 200, "Data": logsData["ServerBackup"], "meta": {}, "error": None}
+
 
 @infrastructure_bp.route('/api/serverEnvironmentLogs', methods=["POST"])
 def serverEnvironmentLogs():
@@ -214,6 +268,7 @@ def serverEnvironmentLogs():
     logsData["environmentLogs"] = df.iloc[start:end].to_json()
     return {"status": 200, "Data": logsData["environmentLogs"], "meta": {}, "error": None}
 
+
 @infrastructure_bp.route('/api/windowEventLogs', methods=["POST"])
 def windowEventLog():
 
@@ -247,6 +302,7 @@ def windowEventLog():
     logsData["windowsEventLogs"] = df
     return {"status": 200, "Data": df, "meta": {}, "error": None}
 
+
 @infrastructure_bp.route('/api/serverProcessMetrics', methods=["POST"])
 def serverProcessMetricsLog():
     dataPost = request.get_json()
@@ -266,40 +322,6 @@ def serverProcessMetricsLog():
     logsData["ServerProcessMetrics"] = processMetricsJson
     return {"status": 200, "Data": processMetricsJson, "meta": {}, "error": None}
 
-@infrastructure_bp.route('/api/applicationReliability', methods=["POST"])
-def applicationReliabilityLog():
-    dataPost = request.get_json()
-
-    filter = dataPost.get('filters')      
-    start_time = dataPost.get('start_time')   
-    end_time = dataPost.get('end_time') 
-    # apmNumbers = filtersData(filter, "apmNumber")
-    apmNumbers = getFiltersFromCache(filter, "apmNumber")  
-      
-    aggregateBool = dataPost.get('aggregate')  
-    #print(aggregateBool)
-    connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
-    insights_df = appReliability(connectToServicePerf, apmNumbers,aggregateBool, start_time, end_time)
-
-    return {"status": 200, "Data": insights_df, "meta": {}, "error": None}
-
-@infrastructure_bp.route('/api/applicationexceptions', methods=["POST"])
-def applicationexceptionLog():
-    dataPost = request.get_json()
-
-    filter = dataPost.get('filters')      
-    start_time = dataPost.get('start_time')   
-    end_time = dataPost.get('end_time') 
-    aggregateBool = dataPost.get('aggregate')  
-    #print(aggregateBool)
-
-    # apmNumbers = filtersData(filter, "apmNumber")
-    apmNumbers = getFiltersFromCache(filter, "apmNumber")  
-         
-    connectToServicePerf = connectToDw_SqlServerPwd("spidedbsv6c6b60.wa.providence.org\\SPIDER", "ServicePerf_DW","servCRCAMonitor")
-    insights_df = appExceptions(connectToServicePerf, apmNumbers, aggregateBool, start_time, end_time)
-    
-    return {"status": 200, "Data": insights_df, "meta": {}, "error": None}
 
 @infrastructure_bp.route('/api/VMRebootLogs', methods=["POST"])
 def VMRebootLog():
@@ -337,6 +359,7 @@ def VMRebootLog():
 
     return {"status": 200, "Data": df, "meta": {}, "error": None}
 
+
 @infrastructure_bp.route('/api/WorkstationMetricsLogs', methods=["GET"])
 def WorkstationMetricsLog():
     page = request.args.get('page')  # Retrieve the value of the 'page' parameter
@@ -371,6 +394,7 @@ def WorkstationMetricsLog():
     logsData["workstationLogs"] = df.iloc[start:end].to_json()
 
     return {"status": 200, "Data": logsData["workstationLogs"], "meta": {}, "error": None}
+
 
 @infrastructure_bp.route('/api/azureServerMetricsCPUDatalogs', methods=["POST"])
 def azureServerMetricsCPUDatalog():
@@ -458,6 +482,7 @@ def azureServerMetricsCPUDatalog():
     #print("Response Data:", logsData) 
     return {"status": 200, "Data": logsData.pop("CpuUtilization"), "meta": logsData, "error": None}
 
+
 @infrastructure_bp.route('/api/azureServerMetricsMemoryDatalogs', methods=["POST"])
 def azureServerMetricsMemoryDatalog():
     print("azureServerMetricsMemoryDatalogs function has been called")
@@ -538,6 +563,7 @@ def azureServerMetricsMemoryDatalog():
 
     return {"status": 200, "Data": logsData.pop("MemoryUtilization"), "meta": logsData, "error": None}
 
+
 @infrastructure_bp.route('/api/azureServerMetricsFileshareDatalogs', methods=["POST"])
 def azureServerMetricsFileshareDatalog():
     start = datetime.now()
@@ -566,6 +592,7 @@ def azureServerMetricsFileshareDatalog():
     
     print("azureServerMetricsFileshareDatalogs API: "+ str(start)+" - "+str(end))
     return {"status": 200, "Data": logsData.pop("FileshareUtilization"), "meta": logsData, "error": None}
+
 
 @infrastructure_bp.route('/api/azureServerMetricsDiskDatalogs', methods=["POST"])
 def azureServerMetricsDiskDatalog():
@@ -651,3 +678,120 @@ def azureServerMetricsDiskDatalog():
     print("Disk API: "+ str(start)+" - "+str(end))
 
     return {"status": 200, "Data": logsData.pop("DiskUtilization"), "meta": logsData, "error": None}
+
+
+@infrastructure_bp.route('/api/serverLogs', methods = ["POST"])
+def serverLogs():
+    print(datetime.now())
+    dataPost = request.get_json()
+    filter = dataPost.get('filters')
+    
+    server_df = getServerList(filter)
+
+    
+    return {"status": 200, "Data": server_df["Server"].to_json(), "meta": {}, "error": None}
+
+
+@infrastructure_bp.route('/api/serviceLogs', methods=["POST"])
+def serviceLogs():
+    
+    try:
+        s = datetime.now()
+        dataPost = request.get_json()
+        aggregate = dataPost.get('aggregate')    # Retrieve the value of the 'limit' parameter
+        filter = dataPost.get('filters')
+        start_time = dataPost.get('start_time')  # Retrieve the value of the 'start_time' parameter
+        end_time = dataPost.get('end_time')  # Retrieve the value of the 'end_time' parameter
+        serviceType = dataPost.get('serviceType', 'All')
+        serverName = ""
+        apmNumbers = ""
+        logsData = dict()
+        print("hello Hereeee")
+        print(filter)
+        if('serverName' in dataPost):
+            serverName = dataPost.get('serverName')
+            if(not("'" in serverName)):
+                s= ""
+                for i in serverName.split(','):
+                    s+="'"+i+"',"
+                s=s[0:-1]
+                # print(s)
+                serverName = s
+        else:
+            apmNumbers = getFiltersFromCache(filter, "apmNumber")
+            # print("APM Numbers")
+            # print(apmNumbers)
+        connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
+        
+        services_df = servicesData(connectToCrcaMonitoring, apmNumbers, serverName, aggregate, start_time, end_time)
+        
+        # print(services_df["Service"].columns)
+        for i in services_df:
+            if(i!="Service"):
+                print(i+" "+services_df[i])
+                logsData[i] = services_df[i]
+        
+        e = datetime.now()
+        print("Services API: "+ str(s)+" - "+str(e)) 
+        return {"status": 200, "Data": services_df["Service"].to_json(), "meta": dict(logsData), "error": None}, 200
+        
+    except Exception as ex:
+        print(str(ex))
+        return error_response(501, "Failed to fetch service metrics", detail=str(ex), exc=ex)
+
+
+@infrastructure_bp.route('/api/serverDownDetails', methods = ["POST"])
+def serverDownDetails():  
+    dataPost = request.get_json()
+    aggregate = dataPost.get('aggregate')
+    filter = dataPost.get('filters')
+    #serverName = dataPost.get('serverName')
+    start_time = dataPost.get('start_time')
+    end_time = dataPost.get('end_time')
+
+    print("The aggreate is ", aggregate)
+    logsData = dict()
+
+    print("The filter for server down ", filter)
+    print("The starttime is ", start_time)
+    print("The endTime is ", end_time)
+
+    # Fetch server down details directly from the database (ServerStatus table via getGACQuery).
+    connectToCrcaMonitoring = connectToDw_AADpwd(
+        "sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org"
+    )
+    apmNumbers = getFiltersFromCache(filter, "apmNumber")
+    server_alerts_df = serverDownTimeData(connectToCrcaMonitoring, apmNumbers, "", aggregate, start_time, end_time)
+
+    if not isinstance(server_alerts_df, pandas.DataFrame) or server_alerts_df.empty:
+        return {"status": 200, "Data": {}, "meta": {}, "error": None}
+
+    # Normalize AppCI values and filter based on the selected filters.
+    appCI = getFiltersFromCache(filter, "appCI")
+    appCI = [i.strip() for i in appCI.replace("'", "").split(",")]
+
+    server_alerts_df["AppCI_copy"] = server_alerts_df["AppCI"].str.lower().str.strip()
+    server_alerts_df = server_alerts_df[server_alerts_df["AppCI_copy"].isin(appCI)]
+
+    logsData["ServersData"] = server_alerts_df.to_json()
+    return {"status": 200, "Data": logsData["ServersData"], "meta": {}, "error": None}
+
+
+@infrastructure_bp.route('/api/diskSkuRecommendation', methods=["POST"])
+def diskskurecommendation():
+    connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
+    
+    # Get the VM name from the request JSON
+    request_data = request.get_json()
+    vm_name = request_data.get('vm')  # Extract the vm name from the request
+    print(f"Fetching details for VM: {vm_name}")
+
+    # Call the function with the VM name
+    vmdetails_df = diskdetails_df(connectToCrcaMonitoring, vm_name)
+    if(vmdetails_df is None):
+       return {"status": 200, "Data": {"message": "VM SKU details not found"}, "meta": {}, "error": None}, 200
+    
+    # Convert the DataFrame to JSON and return
+    json_data = vmdetails_df.to_json(orient="records")
+
+    return {"status": 200, "Data": json.loads(json_data), "meta": {}, "error": None}
