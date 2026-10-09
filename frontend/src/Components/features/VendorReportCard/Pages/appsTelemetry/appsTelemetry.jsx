@@ -8,6 +8,7 @@ import { Typography } from '@mui/material';
 import SingleCard from '../../../../shared/SingleCard/SingleCard';
 import LineChart from '../../Graphs/LineChart';
 import DoubleCard from '../../../../shared/DoubleCard/DoubleCard'
+import { getUrl } from '../../../../../environment';
 
 
 const Item = styled(Paper)(({ theme }) => ({
@@ -39,7 +40,7 @@ function AppsTelemetry() {
         limit: limit,
         aggregate: aggregate
       };
-      var url = new URL('http://127.0.0.1:5000/serviceLogs');
+      var url = new URL(getUrl() + 'serviceLogs');
       url.search = new URLSearchParams(params).toString();
       
       fetch(url)
@@ -62,7 +63,7 @@ function AppsTelemetry() {
         limit: limit,
         aggregate: aggregate
       };
-      var url = new URL('http://127.0.0.1:5000/interfaceLogs');
+      var url = new URL(getUrl() + 'interfaceLogs');
       url.search = new URLSearchParams(params).toString();
       
       fetch(url)
@@ -85,7 +86,7 @@ function AppsTelemetry() {
         aggregate: aggregate,
         miBool: miBool
       };
-      var url = new URL('http://127.0.0.1:5000/incidentLogs');
+      var url = new URL(getUrl() + 'incidentLogs');
       url.search = new URLSearchParams(params).toString();
       console.log(url);
       fetch(url)
@@ -97,7 +98,7 @@ function AppsTelemetry() {
     //Fetching KPI Data
     var fetchKpiData = () => {
       console.log("hello")
-      var url = new URL('http://127.0.0.1:5000/appsTelemetry');
+      var url = new URL(getUrl() + 'appsTelemetry');
       console.log(url);
       fetch(url)
         .then((response) => response.json())

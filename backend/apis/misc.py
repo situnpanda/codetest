@@ -8,6 +8,7 @@ requests to those functions and returns the uniform success/error envelope.
 """
 import base64
 import json
+import os
 import pyodbc
 import requests
 from datetime import datetime
@@ -15,7 +16,10 @@ from datetime import datetime
 import pandas
 from flask import Blueprint, request, jsonify, Response
 
+import shared.appinsightsLogger as appinsights_logger
 from shared.appinsightsLogger import log_performance, error_response
+from shared.environment import ENVIRONMENT
+from shared.adx import ADX_CLUSTER, ADX_DATABASE
 from shared.keyVault import connectToKeyVault
 from shared.dataBase import (
     connectToDw_AADpwd,
@@ -31,6 +35,19 @@ from domains.metrics.infrastructure.resourceComplianceMetrics import get_infra_e
 from domains.metrics.infrastructure.infrastructureTelemetry import sendEmail, infraAlerts, serverUptime, TagComplianceData
 
 misc_bp = Blueprint("misc", __name__)
+
+
+@misc_bp.route("/api/environment", methods=["GET"])
+def getBackendEnvironment():
+    """Read-only: which environment this backend resolved at startup (no secrets)."""
+    info = {
+        "environment": ENVIRONMENT,
+        "deploymentEnvSet": bool((os.getenv("DEPLOYMENT_ENV") or "").strip()),
+        "appInsightsEnabled": appinsights_logger._logger_provider is not None,
+        "adxCluster": ADX_CLUSTER,
+        "adxDatabase": ADX_DATABASE,
+    }
+    return {"status": 200, "Data": json.dumps(info), "meta": {}, "error": None}
 
 
 @misc_bp.route('/api/run-process', methods=['POST'])

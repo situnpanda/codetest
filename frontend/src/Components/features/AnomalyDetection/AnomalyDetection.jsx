@@ -12,6 +12,7 @@ import LineGraph from '../../shared/LineChart/LineChart';
 import { DataGrid } from '@mui/x-data-grid';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { getUrl } from '../../../environment';
 
 const theme = createTheme({
   palette: {
@@ -54,7 +55,7 @@ const AnomalyDetection = () => {
 
   const fetchAnomaliesDetectionData = () => {
     const params = {};
-    const url = new URL('http://127.0.0.1:5000//anomaliesList');
+    const url = new URL(getUrl() + 'anomaliesList');
     url.search = new URLSearchParams(params).toString();
 
     fetch(url)
@@ -101,7 +102,7 @@ const AnomalyDetection = () => {
 
   const fetchAnomaliesInfo = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/anomaliesInfo'); 
+      const response = await fetch(getUrl() + 'anomaliesInfo');
       const data = await response.json();
       setAnomaliesData(data);
     } catch (error) {

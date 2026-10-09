@@ -12,8 +12,10 @@ delivery and **staged, approval-gated deployments**, on top of a single
 > production each pause for a human approval** (GitHub Environment required
 > reviewers). Each stage writes the *same* image tag into that environment's
 > Helm values file on the `helmcharts` branch, and **Argo CD** rolls the
-> environment. No image is ever rebuilt per environment. Releases and hotfixes
-> are **git tags** on `main`.
+> environment. No image is ever rebuilt per environment. When production
+> succeeds, the pipeline **tags the commit on `main` with the next version**
+> (`v1.4.1`), adds that version as an extra tag on the same images, and creates a
+> GitHub Release.
 
 ---
 
@@ -35,8 +37,9 @@ three environments exist as Helm value files on the **`helmcharts` branch**:
    and applies whatever tag is written there.
 4. **Promotion is gated by an environment approval.** Staging and production
    each pause until a required reviewer approves the deployment job.
-5. **Releases are tags.** `v1.4.0`, `v1.4.1` tagged on `main` — no release
-   branch.
+5. **Releases are tags, created by the pipeline.** Every commit that reaches
+   production gets a semantic version tag (`v1.4.0`, `v1.4.1`) on `main` — no
+   release branch, and nobody tags by hand (see §3.1).
 
 ---
 
@@ -50,8 +53,8 @@ three environments exist as Helm value files on the **`helmcharts` branch**:
 
 **Naming conventions**
 
-- `feature/<ticket>-<short-desc>` — e.g. `feature/ITEL-142-network-drilldown`
-- `hotfix/<ticket>-<short-desc>` for urgent production fixes.
+- `feature/<short-desc>` — e.g. `feature/network-drilldown`
+- `hotfix/<short-desc>` for urgent production fixes.
 
 **Trunk-based rules for `feature/*` branches**
 
@@ -76,6 +79,58 @@ release-<dd.mm.yy>-<short_sha>      e.g.  release-06.10.26-abc1234
 - Promotion never rebuilds; each deploy stage only repoints an env's values file
   at this existing tag (verified first with `docker manifest inspect`).
 
+### 3.1 Release versions (`vMAJOR.MINOR.PATCH`)
+
+The image tag says **which build**; the version says **which release**. A
+version is only assigned once a build reaches production, in the last steps of
+`deploy-prod`:
+
+1. **Tag release on main** — finds the latest `v*` tag, computes the next
+   version, and pushes an annotated git tag on the deployed commit
+   (`Release v1.4.1 (image release-06.10.26-abc1234)`).
+2. **Add release version to images** — adds `v1.4.1` as a second tag on the
+   *same* backend and frontend images (`docker buildx imagetools create`, no
+   rebuild — both tags share one digest).
+3. **Create GitHub Release** — `v1.4.1` under **Releases**, with notes generated
+   from the merged PRs plus the image tag and commit.
+4. **Release summary** — a table on the run page: version, image tag, commit.
+
+**Choosing the bump** — controlled by the merge commit message (with squash
+merges, that is the PR title):
+
+| Merge commit message | Previous | New |
+|---|---|---|
+| `Fix alert threshold` | v1.4.0 | **v1.4.1** (patch, default) |
+| `Add reboot history page #minor` | v1.4.1 | **v1.5.0** |
+| `New auth flow #major` | v1.5.0 | **v2.0.0** |
+| first release (no tags yet) | — | **v0.0.1** |
+
+**Rules**
+
+- A commit that already has a `v*` tag keeps it (rollback re-runs don't create
+  new versions).
+- Commits not on `main` (e.g. a manual run from another branch) are deployed but
+  not tagged; the run shows a warning.
+- Tags pushed with `GITHUB_TOKEN` don't trigger workflows, so tagging never
+  starts a new pipeline run.
+- `values-prod.yaml` keeps the image tag (`release-…-<sha>`); Argo CD never
+  needs the version.
+
+**Where to see which version is which image**
+
+| Place | What you see |
+|---|---|
+| Run page → **Summary** | `v1.4.1 \| release-06.10.26-abc1234 \| abc1234 \| production` |
+| **Releases** → `v1.4.1` | `Image tag: release-06.10.26-abc1234` + PR list |
+| `git show v1.4.1 --no-patch` | Tag message `Release v1.4.1 (image release-06.10.26-abc1234)` |
+| `git tag --points-at abc1234` | `v1.4.1` (the image tag ends with the commit) |
+| Artifactory | `v1.4.1` and `release-06.10.26-abc1234` show the same digest |
+
+**`package.json` version** — not used for releases. The frontend is `private`
+and never published, and the pipeline must not commit version bumps back to
+`main` (that would trigger another run, fight branch protection, and change the
+commit after its image was built). The git tag is the source of truth.
+
 ---
 
 ## 4. The pipeline
@@ -89,7 +144,7 @@ is a **branch of the same repo**, so the default `GITHUB_TOKEN` can push to it.
 | `build` | — | — | Builds backend + frontend **once** (tag `release-<dd.mm.yy>-<sha>`), pushes to Artifactory, exposes the tag as a job output. |
 | `deploy-dev` | `build` | none (automatic) | Writes the tag into `values-dev.yaml` → Argo deploys **dev**. |
 | `deploy-staging` | `deploy-dev` | **`staging` environment approval** | Verifies the images exist, writes the **same** tag into `values-stag.yaml` → Argo deploys **staging**. |
-| `deploy-prod` | `deploy-staging` | **`production` environment approval** | Verifies the images exist, writes the **same** tag into `values-prod.yaml` → Argo deploys **production**. |
+| `deploy-prod` | `deploy-staging` | **`production` environment approval** | Verifies the images exist, writes the **same** tag into `values-prod.yaml` → Argo deploys **production**. Then tags the commit `vX.Y.Z`, adds the version to the images, and creates a GitHub Release (§3.1). |
 
 Because every deploy job reads the tag from `needs.build.outputs.image_tag`,
 staging and production always deploy the **exact image dev validated** — there is
@@ -118,61 +173,76 @@ Prerequisites checklist:
 - `helmcharts` branch exists with `values-dev.yaml`, `values-stag.yaml`,
   `values-prod.yaml`, each containing `tag:` lines for backend and frontend.
 - Secret `JFROG_TOKEN_SP` present (build + registry login).
-- Self-hosted runner `prov-wu2-...` online with `docker` and `git`.
+- Self-hosted runner `prov-wu2-...` online with `docker` (with `buildx`), `git`
+  and `curl`.
 - If the `helmcharts` branch has protection requiring PRs, the CI identity used
   by the deploy jobs must be on the ruleset **bypass list** (the jobs push
   directly).
+- If a tag ruleset protects `v*` tags, the CI identity must be on its bypass list
+  too (`deploy-prod` pushes release tags).
+- Workflow permission `contents: write` (already set) — needed to push tags and
+  create Releases.
 
 ---
 
 ## 6. End-to-end scenarios
 
-### Scene 1 — Normal release (happy path)
+### Scenario 1 — Normal release (happy path)
 ```
 feature ─PR→ main ─build release-06.10.26-abc1234─► DEV (auto)
                               approve ─► STAGING (same tag)
-            tag v1.4.0,       approve ─► PROD    (same tag)
+                              approve ─► PROD    (same tag) ─► tag v1.4.0 + Release
 ```
-1. PR into `main` (CodeQL + secret-scan + review) → merge.
+1. PR into `main` (CodeQL + secret-scan + review) → merge. Add `#minor` /
+   `#major` to the PR title if this is more than a patch.
 2. Pipeline builds the image once → `deploy-dev` updates `values-dev.yaml` →
    Argo deploys dev.
 3. `deploy-staging` pauses → a staging reviewer approves → it writes the same tag
    into `values-stag.yaml` → Argo deploys staging.
-4. Validate → tag `v1.4.0` on `main` → `deploy-prod` pauses → a production
-   reviewer approves → it writes the identical tag into `values-prod.yaml` → Argo
-   deploys prod.
+4. Validate → `deploy-prod` pauses → a production reviewer approves → it writes
+   the identical tag into `values-prod.yaml` → Argo deploys prod → the job tags
+   the commit `v1.4.0` and creates the GitHub Release.
 
-### Scene 2 — Bug found in **dev**
+### Scenario 2 — Bug found in **dev**
 Staging/prod were never approved, so nothing to undo. **Fix forward on `main`** →
 new pipeline run → new build → dev updates. The bad build simply never gets
 staging approval.
 
-### Scene 3 — Bug found in **staging**
+### Scenario 3 — Bug found in **staging**
 Prod is untouched (never approved). **Fix forward:** fix on `main` → new run →
 dev → approve staging again. Don't approve the production stage of the bad run.
 
-### Scene 4 — **Hotfix** in production
+### Scenario 4 — **Hotfix** in production
 No release branch — a hotfix is an urgent fix-forward:
-1. `hotfix/<ticket>` off `main` → fix + regression test → PR → merge. Pipeline
-   builds a new image → dev.
+1. `hotfix/<short-desc>` off `main` → fix + regression test → PR → merge.
+   Pipeline builds a new image → dev.
 2. Approve staging → validate.
-3. Tag `v1.4.1` on `main` → approve production.
+3. Approve production → the job tags it `v1.4.1` (patch bump) automatically.
 
-### Scene 5 — Emergency **rollback** of production
-The previous image is still in Artifactory — no rebuild. Re-run the pipeline for
-the last known-good commit (or manually set the previous tag in
-`values-prod.yaml`) and approve prod; Argo rolls prod back in minutes. Then fix
-forward via Scene 4.
+### Scenario 5 — Emergency **rollback** of production
+The previous image is still in Artifactory — no rebuild.
 
-### Scene 6 — Multiple people at once
+1. Find the last good release under **Releases** (e.g. `v1.4.0`) and open the
+   pipeline run that deployed it (linked from its run summary / commit).
+2. **Re-run jobs** → re-run only `deploy-prod` → approve. It reuses that run's
+   image tag, writes it back into `values-prod.yaml`, and Argo rolls prod back.
+   The commit is already `v1.4.0`, so no new version is created.
+3. Fallback (e.g. run older than GitHub's re-run window): commit the previous
+   image tag into `values-prod.yaml` on `helmcharts` by hand.
+
+Don't use **Run workflow** for a rollback — that starts `build` again and
+produces a new image. Then fix forward via Scenario 4.
+
+### Scenario 6 — Multiple people at once
 Everyone merges small PRs into `main`; **dev always reflects the newest commit**.
 Promote the run whose build you validated. Unfinished work stays dark via
 vertical slicing / branch-by-abstraction (no feature flags — see §8).
 
-### Scene 7 — What is running where
-- The **tag** (`v1.4.0`) says the released version.
-- `values-prod.yaml` on `helmcharts` shows the exact tag live in prod.
-- Compare the prod tag against `main` to see what's new but unreleased.
+### Scenario 7 — What is running where
+- The latest **Release** / `v*` tag says the released version.
+- `values-prod.yaml` on `helmcharts` shows the exact image tag live in prod
+  (after a rollback this can be an older release than the latest tag).
+- `git log v1.4.0..main --oneline` shows what's merged but not yet released.
 
 ---
 
@@ -184,6 +254,7 @@ vertical slicing / branch-by-abstraction (no feature flags — see §8).
 | **PR → `main`** | Full suite + build + **CodeQL** + secret push-protection | **Required** — blocks merge |
 | `deploy-staging` / `deploy-prod` | `docker manifest inspect` (image-exists check) + **environment approval** | Blocks promoting a non-existent image / unapproved deploy |
 | Deploy job writes values file | Argo CD sync | Deploys the env |
+| After `deploy-prod` updates prod | Release tag + image version alias + GitHub Release | Records the version |
 
 ---
 
@@ -217,4 +288,5 @@ Every merge to `main` must leave it releasable. Keep unfinished work dark by:
 - [ ] The image tag exists in Artifactory (the deploy job's `manifest inspect` step passed).
 - [ ] The source environment (dev for staging; staging for prod) was validated.
 - [ ] The required environment reviewer approved the deployment.
-- [ ] For production: a release tag `vX.Y.Z` has been cut on `main`.
+- [ ] For production: the PR title carries `#minor` / `#major` if the change is
+      more than a patch (the release tag itself is created by the pipeline).

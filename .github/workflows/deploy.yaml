@@ -195,3 +195,84 @@ jobs:
           git commit -m "Promote ${IMAGE_TAG} to production"
           git push origin ${{ env.HELM_BRANCH }}
           echo "Production image tag set to ${IMAGE_TAG}"
+
+      # Release versioning: the commit that reaches production gets the next
+      # semantic version tag (vMAJOR.MINOR.PATCH) on main. Patch bump by default;
+      # put "#minor" or "#major" in the merge commit message (squash: the PR title)
+      # to bump those instead. A commit that already has a v* tag (e.g. a rollback
+      # re-run) keeps its existing version.
+      - name: Tag release on main
+        id: release
+        run: |
+          set -euo pipefail
+          git config user.name "itelemetry-deploy-bot"
+          git config user.email "itelemetry-deploy-bot@users.noreply.github.com"
+          git fetch --force --tags origin main
+
+          existing=$(git tag --points-at "${GITHUB_SHA}" --list 'v*' --sort=-v:refname | head -n1)
+          if [ -n "${existing}" ]; then
+            echo "Commit ${GITHUB_SHA::7} is already released as ${existing}; not creating a new version."
+            echo "version=${existing}" >> "$GITHUB_OUTPUT"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::warning::Commit ${GITHUB_SHA::7} is not on main; skipping release tag."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          last=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          last=${last:-v0.0.0}
+          IFS=. read -r major minor patch <<< "${last#v}"
+          msg=$(git log -1 --format=%B "${GITHUB_SHA}")
+          if   grep -q '#major' <<< "${msg}"; then major=$((major + 1)); minor=0; patch=0
+          elif grep -q '#minor' <<< "${msg}"; then minor=$((minor + 1)); patch=0
+          else patch=$((patch + 1)); fi
+          VERSION="v${major}.${minor}.${patch}"
+
+          git tag -a "${VERSION}" "${GITHUB_SHA}" -m "Release ${VERSION} (image ${IMAGE_TAG})"
+          git push origin "refs/tags/${VERSION}"
+          echo "Created and pushed ${VERSION} (previous: ${last}) for image ${IMAGE_TAG}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Add release version to images (no rebuild)
+        if: steps.release.outputs.created == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          for img in itelemetry-backend itelemetry-frontend; do
+            docker buildx imagetools create \
+              --tag "${IMAGE_BASE}/${img}:${VERSION}" \
+              "${IMAGE_BASE}/${img}:${IMAGE_TAG}"
+            echo "${img}:${VERSION} -> same digest as ${img}:${IMAGE_TAG}"
+          done
+
+      - name: Create GitHub Release
+        if: steps.release.outputs.created == 'true'
+        continue-on-error: true   # cosmetic; prod is already deployed and tagged
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases" \
+            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"Image tag: ${IMAGE_TAG}\\nCommit: ${GITHUB_SHA}\",\"generate_release_notes\":true}" \
+            > /dev/null
+          echo "GitHub Release ${VERSION} created."
+
+      - name: Release summary
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          {
+            echo "### Production deployment"
+            echo ""
+            echo "| Version | Image tag | Commit | Environment |"
+            echo "|---------|-----------|--------|-------------|"
+            echo "| ${VERSION:-n/a} | ${IMAGE_TAG} | ${GITHUB_SHA::7} | production |"
+          } >> "$GITHUB_STEP_SUMMARY"

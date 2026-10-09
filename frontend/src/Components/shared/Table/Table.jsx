@@ -14,7 +14,7 @@ import {
   ThemeProvider,
   createTheme,
 } from '@mui/material';
-import BlueSquare from './BlueSquare';
+import BlueSquare from '../WhiteSquare/WhiteSquare';
 
 const dummyData = [
   { id: 1, column1: 'Dummy Data 1', column2: 'Value 1' },

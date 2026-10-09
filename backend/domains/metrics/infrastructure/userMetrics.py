@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 
 from shared.appinsightsLogger import error_response
+from shared.environment import ENVIRONMENT
 
 PERF_WORKSPACE_ID = "552b9630-b106-4fe7-a1fa-97d04a0010ef"
 PERF_SERVICE_NAME = "iTelemetry-Backend"
@@ -32,7 +33,6 @@ def get_user_metrics():
             "ghosh shreya",
             "panda situn",
             "mallick ayush",
-            "penmetsa karthik sai verma",
             "penmetsa karthik sai varma"
         ]);
         User_Metrics
@@ -104,7 +104,7 @@ def get_performance_metrics(days=7):
         base = f"""AppTraces
 | where TimeGenerated between (datetime({start_iso}) .. datetime({end_iso}))
 | where AppRoleName == '{PERF_ROLE_NAME}'
-| where tostring(Properties['environment']) == 'production'""" 
+| where tostring(Properties['environment']) == '{ENVIRONMENT}'"""
 
         responses = f"""{base}
 | where tostring(Properties['event_type']) == 'api_response'

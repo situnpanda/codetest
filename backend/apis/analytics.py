@@ -39,6 +39,7 @@ def getPatternAnalysis():
 
 
 @analytics_bp.route('/anomaliesList')
+@analytics_bp.route('/api/anomaliesList')
 def anomaliesData():
     connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
     df_anomaliesList = anomaliesList(connectToCrcaMonitoring)
@@ -48,6 +49,7 @@ def anomaliesData():
 
 
 @analytics_bp.route('/anomaliesInfo')
+@analytics_bp.route('/api/anomaliesInfo')
 def anomaliesInformation():
     connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
     anomalies_data = anomaliesInfo(connectToCrcaMonitoring)

@@ -7,6 +7,26 @@ from azure.kusto.ingest import IngestionProperties, IngestionMappingKind, KustoS
 from azure.kusto.data.helpers import dataframe_from_result_table
 
 from shared.appinsightsLogger import log_dependency
+from shared.environment import ENVIRONMENT
+
+# ---------------------------------------------------------------------------
+# Environment -> ADX cluster (READ path only).
+#
+# prod is the LEADER (ingestion lands here). stag and dev are read-only
+# FOLLOWER clusters attached to the prod database, so all three expose the
+# same database name and tables -- only the cluster URI differs.
+# Environment comes from DEPLOYMENT_ENV via shared.environment.
+# ---------------------------------------------------------------------------
+ADX_DATABASE = "crca_monitoring_telemetry"
+
+ADX_CLUSTER_BY_ENV = {
+    "production":  "https://telemetrycrcav2.westus2.kusto.windows.net",      
+    "staging":     "https://telemetrycrcav2stag.westus2.kusto.windows.net",  
+    "development": "https://telemetrycrcav2dev.westus2.kusto.windows.net",  
+}
+
+ADX_CLUSTER = ADX_CLUSTER_BY_ENV[ENVIRONMENT]
+print(f"[ADX] environment={ENVIRONMENT} cluster={ADX_CLUSTER} database={ADX_DATABASE}")
 
 def connectToADX(cluster):
     count = 0
@@ -29,9 +49,9 @@ def connectToADX(cluster):
 @log_dependency("ADX", "kusto_query")
 def readFromADX(query):
     try:
-        # ADX Metadata
-        cluster = "https://telemetrycrcav2.westus2.kusto.windows.net"
-        database = "crca_monitoring_telemetry"
+        # ADX Metadata (cluster resolved per environment; see ADX_CLUSTER_BY_ENV)
+        cluster = ADX_CLUSTER
+        database = ADX_DATABASE
         table = "Server_Metrics_Perf"
         
         # Connect to ADX

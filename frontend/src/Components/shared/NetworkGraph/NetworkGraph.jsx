@@ -7,7 +7,6 @@ import CpInterfaceImage from '../../Static/Images/CpInterfaceImage.jpg'
 import { Gauge } from '@mui/x-charts/Gauge';
 import "./NetworkGraph.css"; // Import custom network CSS
 import {Tooltip} from 'react-tooltip';
-import { maxHeight } from '@mui/system'
 
 export default function NetworkGraph(props) {
 

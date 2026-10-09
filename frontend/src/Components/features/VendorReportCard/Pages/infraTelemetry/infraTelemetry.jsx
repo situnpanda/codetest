@@ -37,8 +37,8 @@ import TextField from '@mui/material/TextField';
 import Switch from '@mui/material/Switch';
 import SendIcon from '@mui/icons-material/Send';
 import { Tooltip} from '@mui/material';
-import { exportDateTime } from '../../../Header/Header';
 import { AddShoppingCartSharp } from '@mui/icons-material';
+import { getUrl } from '../../../../../environment';
 
 
 function InfrastructureTelemetry(
@@ -47,11 +47,7 @@ function InfrastructureTelemetry(
   }
 ) {
 
-  //var baseUrl =  "http://127.0.0.1:5000/api/"
-  var baseUrl =  "https://itelemetry.providence.org/api/"
-  //var baseUrl =  "http://100.100.129.88:9090/api/"
-  //var baseUrl =  "http://100.100.129.88:9090/api/" 
-  //var baseUrl =  "http://100.100.129.88:9090/api/"
+  var baseUrl = getUrl()
   var [serverList,setServerList] = useState({})
   var [serverEnvironment,setServerEnvironment] = useState({})
   var [windowsEvent,setWindowsEvent] = useState({})
