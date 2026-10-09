@@ -35,6 +35,7 @@ import Divider from '@mui/material/Divider';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
+import { getUrl } from '../../../environment';
 
 
 function RowDowntimeTable(props){
@@ -117,7 +118,7 @@ function createData(AppCI, ItemNumber, Status, StartTime, Description, EndTime) 
 
 function LandingPage() {
 
-  var baseUrl = "https://itelemetry.providence.org/api/"  //"http://127.0.0.1:5000/api/"
+  var baseUrl = getUrl()
   var [outageRows, setOutageRows] = useState([])
   var [hospitalRows, setHospitalRows] = useState({})
   var [loading, setLoading] = useState(0)

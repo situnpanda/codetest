@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { differenceInHours, differenceInMinutes } from 'date-fns';
-import { styled } from '@mui/system';
+import { styled } from '@mui/material/styles';
 import BuildIcon from '@mui/icons-material/Build';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutlined';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';

@@ -1,7 +1,6 @@
 import './App.css';
-import React, { useEffect, lazy, Suspense } from 'react';
-import {useNavigate, useLocation} from 'react-router-dom'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { useLocation, Routes, Route } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Unstable_Grid2';
 import Header from './Components/features/Header/Header';
@@ -9,7 +8,6 @@ const Logs = lazy(() => import('./Components/features/Logs/Logs'));
 const ServiceEngineeringCentral = lazy(() => import('./Components/features/ServiceEngineering/ServiceEngineeringCentral'));
 const AppsAnalysis = lazy(() => import('./Components/features/SmartscapeTopology/SmartscapeTopology'));
 const AnomalyDetection = lazy(() => import('./Components/features/AnomalyDetection/AnomalyDetection'));
-import { useState } from 'react';
 const ValidationDrilldown = lazy(() => import('./Components/features/HomePage/AppValidation'));
 const ServerDrillDown = lazy(() => import('./Components/features/HomePage/ServerDrillDown'));
 const ApplicationStatus = lazy(() => import('./Components/features/HomePage/AppStatus'));
@@ -30,7 +28,7 @@ const SecurityMetrics = lazy(() => import('./Components/features/HomePage/Securi
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-import { useMsal, useIsAuthenticated, MsalProvider } from '@azure/msal-react';
+import { useMsal, useIsAuthenticated } from '@azure/msal-react';
 import { loginRequest, getToken, getTokenBackend } from './authConfig';
 import {callMsGraph} from './graph'
 import { CircularProgress } from '@mui/material';
@@ -38,7 +36,6 @@ const AppMonitoringDashboard = lazy(() => import('./Components/features/HomePage
 import {trackUserLogin,initializeAppInsights } from './Components/features/appInsights';
 const ItelemetrySummary = lazy(() => import('./Components/features/LeadershipDashboard/iTelemetrySummary'));
 const MiSummaryAnalysis = lazy(() => import('./Components/features/LeadershipDashboard/MiSummary'));
-import './App.css';
 import {getUrl} from './environment'
 const NorthStarHome = lazy(() => import('./Components/features/NorthStarHome/NorthStarHome'));
 const AppPodsWallboard = lazy(() => import('./Components/features/AppPodsWallboard/AppPodsWallboard'));
@@ -53,156 +50,125 @@ dayjs.extend(timezone);
 dayjs.tz.setDefault('America/Los_Angeles'); 
 
 function App({msalInstance, appInsights}) {
-  
   const [date, setDate] = useState({
     startDate: "",
     endDate: ""
   });
   const location = useLocation();
-  
-  var [hospitalInformation ,setHospitalInformation] = useState({})
-  var [globalFilterData, setGlobalFilterData] = useState({})
-  var [globalApplicationList, setGlobalApplicationList] = useState({})
-  var [globalFilterChoice, setGlobalFilterChoice] = useState({})
-  var [userProfile, setUserProfile] = useState({})
-  var [isInteractionInProgress, setIsInteractionInProgress] = useState(false)
-  var [accessToken, setAccessToken] = useState("")
-  var [accessTokenBackend, setAccessTokenBackend] = useState("")
-  var [isSessionExpired, setIsSessionExpired] = useState(false)
-  var [isSessionExpiredBackendToken, setIsSessionExpiredBackendToken] = useState(false)
+
+  const [hospitalInformation, setHospitalInformation] = useState({})
+  const [globalFilterData, setGlobalFilterData] = useState({})
+  const [globalApplicationList, setGlobalApplicationList] = useState({})
+  const [globalFilterChoice, setGlobalFilterChoice] = useState({})
+  const [userProfile, setUserProfile] = useState({})
+  const [accessToken, setAccessToken] = useState("")
+  const [accessTokenBackend, setAccessTokenBackend] = useState("")
+  const [isSessionExpired, setIsSessionExpired] = useState(false)
+  const [isSessionExpiredBackendToken, setIsSessionExpiredBackendToken] = useState(false)
   const { instance, accounts, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   const [entryTime, setEntryTime] = useState(null);
   const [open, setOpen] = useState(false);
-  const [supportGroupList, setSupportGroupList] = useState([]);
   const [userSupportGroups, setUserSupportGroups] = useState([]);
   const [appValidationAccess, setAppValidationAccess] = useState("NoAccess");
   const [chatOpsAccess, setChatOpsAccess] = useState("NoAccess");
-  var [preferredTZ, setPreferredTZ] = useState("");
+  const [supportGroupsLoaded, setSupportGroupsLoaded] = useState(false);
+  const [preferredTZ, setPreferredTZ] = useState("");
   const previousAppHealthUrlRef = React.useRef("");
-  var [userRoles, setUserRoles] = useState([])
-  var baseUrl =  getUrl()
-
-  useEffect(()=>{
-    if((accessTokenBackend=="" || !isSessionExpiredBackendToken) && inProgress=="none"){
-      if (accounts.length > 0) {
-        // console.log(accounts[0]["idTokenClaims"]["roles"])
-        getAccessTokenBackend()
-      }
-    }
-    if(accessToken=="" && inProgress=="none"){
-      if (accounts.length > 0) {
-        getAccessToken()
-      }
-    }
-  },[accessTokenBackend, isSessionExpiredBackendToken, accounts, accessToken, inProgress])
-
-  useEffect(()=>{
-    if (accounts.length > 0) {
-      console.log("here in the accounts useeffect")
-      console.log(accounts[0]["idTokenClaims"]["roles"])
-      setUserRoles(accounts[0]["idTokenClaims"]["roles"] || [])
-      // getAccessTokenBackend()
-    }
-  },[accounts])
-  // console.log("accounts: ",accounts)
-  useEffect(() => {
-      console.log(userProfile)
-      //console.log("came inside the preferred timezone")
-      console.log("userprofiledata: ",userProfile)
-      const userloc = String(userProfile?.officeLocation || '').toLowerCase();
-      if (userloc.includes('hyderabad') || userloc.includes('pgc')) {
-        setPreferredTZ('Asia/Kolkata');
-      }
-      else{
-        setPreferredTZ('America/Los_Angeles')
-      }
-  }, [userProfile]);
-
-  useEffect(() => {
-    console.log(accounts.length)
-    if (accounts.length === 0 && inProgress=="none") {
-      console.log("in here")
-      // setIsInteractionInProgress(true)
-      instance.loginRedirect(loginRequest).then(response => {
-        // setIsInteractionInProgress(false)
-      }).catch(error => {
-        // setIsInteractionInProgress(false)
-        console.error("Login error:", error)
-      }) 
-    }
-  }, [instance, accounts, inProgress])
+  const [userRoles, setUserRoles] = useState([])
+  const baseUrl = getUrl()
 
   const generateSessionId = () => {
-    const array = new Uint8Array(16); // 16 bytes = 128 bits
-    crypto.getRandomValues(array); // Fill the array with random values
+    const array = new Uint8Array(16); // 128 bits of randomness
+    crypto.getRandomValues(array);
     return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
   };
 
+  const getTokens = useCallback(() => {
+    const needGraph = accessToken === "";
+    const needBackend = accessTokenBackend === "" || isSessionExpiredBackendToken;
+    if (!needGraph && !needBackend) {
+      return;
+    }
+    // Fetch both tokens in parallel rather than chaining them sequentially.
+    Promise.all([
+      needGraph ? getToken(instance, accounts) : Promise.resolve(accessToken),
+      needBackend ? getTokenBackend(instance, accounts) : Promise.resolve(accessTokenBackend),
+    ]).then(([graphTok, backendTok]) => {
+      if (needGraph) {
+        setAccessToken(graphTok)
+      }
+      if (needBackend) {
+        setAccessTokenBackend(backendTok)
+      }
+    })
+  }, [instance, accounts, accessToken, accessTokenBackend, isSessionExpiredBackendToken])
+
+  useEffect(() => {
+    if (inProgress !== "none" || accounts.length === 0) {
+      return
+    }
+    getTokens()
+  }, [accounts, inProgress, getTokens])
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      setUserRoles(accounts[0]["idTokenClaims"]["roles"] || [])
+    }
+  }, [accounts])
+
+  useEffect(() => {
+    const userloc = String(userProfile?.officeLocation || '').toLowerCase();
+    if (userloc.includes('hyderabad') || userloc.includes('pgc')) {
+      setPreferredTZ('Asia/Kolkata');
+    } else {
+      setPreferredTZ('America/Los_Angeles')
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    if (accounts.length === 0 && inProgress === "none") {
+      instance.loginRedirect(loginRequest).catch(error => {
+        console.error("Login error:", error)
+      })
+    }
+  }, [instance, accounts, inProgress])
+
   useEffect(() => {
     if (accessToken !== "") {
-      // console.log(accessToken)
       callMsGraph(accessToken).then((data) => {
-        console.log(data)
         setUserProfile(data);
         const currentTime = Date.now();
         const sessionTimeout = 30 * 60 * 1000; // 30 minutes in milliseconds
         const sessionExpirationTime = sessionStorage.getItem('sessionExpirationTime');
-        
-        // Parse sessionExpirationTime to ensure it's a valid number
         const parsedSessionExpirationTime = sessionExpirationTime ? parseInt(sessionExpirationTime, 10) : 0;
-  
+
         if (!sessionExpirationTime || currentTime - parsedSessionExpirationTime > sessionTimeout) {
           setIsSessionExpired(true)
-          console.log("Session expired or not set. Generating a new session ID.");
           const newSessionId = generateSessionId();
           sessionStorage.setItem('sessionId', newSessionId);
-          sessionStorage.setItem('sessionExpirationTime', currentTime.toString()); // Store as string
+          sessionStorage.setItem('sessionExpirationTime', currentTime.toString());
           trackUserLogin(data, newSessionId);
         } else {
-          console.log("Session is still valid. Using existing session ID.");
           const sessionId = sessionStorage.getItem('sessionId');
           trackUserLogin(data, sessionId);
         }
-  
+
         sessionStorage.setItem('userId', data.id);
         sessionStorage.setItem('userName', data.displayName);
-        
-        console.log(data);
       });
     }
   }, [accessToken]);
 
-  var getAccessToken = () => {
-    getToken(instance, accounts)
-    .then((result)=>{
-      setAccessToken(result)
-      return result
-    })
-  }
-
-  var getAccessTokenBackend = () => {
-    getTokenBackend(instance, accounts)
-    .then((result)=>{
-      console.log("Backend Token set")
-      setAccessTokenBackend(result)
-      return result
-    })
-  }
-
   useEffect(() => {
     if (Object.keys(userProfile).length > 0) {
-      // Call your function here
-      //console.log("The user profile data is ", userp)
       fetchUserSupportGroupsList();
     }
   }, [userProfile]);
 
   const fetchUserSupportGroupsList = async () => {
-    console.log("came into the fetchuser support group in app.js function")
     const mailAdd = String(userProfile["mail"] || "");
-    console.log("The mail address in the app.js is", mailAdd)
-  
+
     try {
       const response = await fetch(baseUrl + 'userToSupportGroupMapping', {
         method: 'POST',
@@ -211,33 +177,22 @@ function App({msalInstance, appInsights}) {
         },
         body: JSON.stringify({ mailAdd })
       });
-  
-      // const supportGroups = await response.json();
-      // const updatedSupportGroups = supportGroups
-      //setUserSupportGroups(updatedSupportGroups);
+
       const result = await response.json();
-    
-    // Handle the uniform envelope: payload is under result.Data
-    const payload = (result && result.Data) ? result.Data : {};
-    if (payload.supportGroups && payload.appValidation !== undefined) {
-      setUserSupportGroups(payload.supportGroups);
-      setAppValidationAccess(payload.appValidation || "NoAccess");
-      setChatOpsAccess(payload.chatOpsAccess || "NoAccess");
-    } 
-  
+
+      // Handle the uniform envelope: payload is under result.Data
+      const payload = (result && result.Data) ? result.Data : {};
+      if (payload.supportGroups && payload.appValidation !== undefined) {
+        setUserSupportGroups(payload.supportGroups);
+        setAppValidationAccess(payload.appValidation || "NoAccess");
+        setChatOpsAccess(payload.chatOpsAccess || "NoAccess");
+      }
     } catch (error) {
       console.error("Failed to fetch support groups:", error);
+    } finally {
+      setSupportGroupsLoaded(true);
     }
   };
-  
-  // useEffect(() => {
-  //   if (userSupportGroups.length > 0) {
-
-  //     console.log("Support groups have been set:", userSupportGroups);
-  //     // Perform any action you need here (e.g., call another API)
-  //   }
-  // }, [userSupportGroups]);
-
 
   useEffect(() => {
     localStorage.setItem("isDrawerOpen", true)
@@ -251,14 +206,21 @@ function App({msalInstance, appInsights}) {
           name: 'TimeSpentInApp',
           average: timeSpent / 1000,
         });
-        console.log('Time Spent:', timeSpent / 1000, 'seconds');
       }
     };
   }, []);
 
+  const isBootstrapped =
+    isAuthenticated &&
+    inProgress === "none" &&
+    Object.keys(userProfile).length > 0 &&
+    accessToken.length > 0 &&
+    accessTokenBackend.length > 0 &&
+    supportGroupsLoaded;
+
   return (
     <>
-      {isAuthenticated && inProgress === "none" && Object.keys(userProfile).length>0 && accessToken.length>0 && accessTokenBackend.length>0 && userSupportGroups.length>0 ? (
+      {isBootstrapped ? (
         <Box sx={{ display: 'flex' }}>
           <div className={`app-container ${open ? 'drawer-open' : 'drawer-closed'}`}></div>
           <Header
@@ -282,48 +244,47 @@ function App({msalInstance, appInsights}) {
           <Box component="main" sx={{ flexGrow: 1, backgroundColor: '#f5f5f5', height: '100vh', mt: 4, overflow: 'auto' }}>
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '60vh' }}><CircularProgress /></Box>}>
             <Routes>
-              <Route exact path="/" element={<AppPodsWallboard userProfileData={userProfile} appInsights={appInsights} supportGroup={userSupportGroups} backendSessionToken={accessTokenBackend} hospitalInformation={hospitalInformation} />}/>
-              <Route exact path="/homePage" element={<NavigateToAppHealth/>}/>
-              <Route exact path="/logs" element={<Logs />} />
-              <Route exact path="/smartscape topology" element={<AppsAnalysis date={date} appInsights={appInsights} />} />
-              <Route exact path="/leadership dashboard" element={<LeadershipDashboard appInsights={appInsights} />} />
-              <Route exact path="/validation" element={<AppValidation userProfileData={userProfile} preferredTZ={preferredTZ} appInsights={appInsights} accounts ={accounts} appValidationAccess={appValidationAccess}/>} />
-              <Route exact path="/serviceengineering" element={<ServiceEngineeringCentral />} />
+              <Route path="/" element={<AppPodsWallboard userProfileData={userProfile} appInsights={appInsights} supportGroup={userSupportGroups} backendSessionToken={accessTokenBackend} hospitalInformation={hospitalInformation} />}/>
+              <Route path="/homePage" element={<NavigateToAppHealth/>}/>
+              <Route path="/logs" element={<Logs />} />
+              <Route path="/smartscape topology" element={<AppsAnalysis date={date} appInsights={appInsights} />} />
+              <Route path="/leadership dashboard" element={<LeadershipDashboard appInsights={appInsights} />} />
+              <Route path="/validation" element={<AppValidation userProfileData={userProfile} preferredTZ={preferredTZ} appInsights={appInsights} accounts ={accounts} appValidationAccess={appValidationAccess}/>} />
+              <Route path="/serviceengineering" element={<ServiceEngineeringCentral />} />
               <Route path="/applicationHealth" element={<ApplicationDownDetailsNew  key={location.pathname+location.search} globalFilterChoice={globalFilterChoice} setGlobalFilterChoice={setGlobalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} supportGroup={userSupportGroups} hospitalInformation={hospitalInformation} date={date} preferredTZ={preferredTZ} previousAppHealthUrl={previousAppHealthUrlRef} globalApplicationList={globalApplicationList}/> } />
 
-              <Route exact path="/applicationHealth/serverStatus" element={<ServerDrillDown date={date} globalFilterChoice={globalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} hospitalInformation={hospitalInformation} preferredTZ={preferredTZ}/>} />
-              <Route exact path="/serverStatus" element={<ServerDrillDown date={date} globalFilterChoice={globalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} hospitalInformation={hospitalInformation}/>} />
+              <Route path="/applicationHealth/serverStatus" element={<ServerDrillDown date={date} globalFilterChoice={globalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} hospitalInformation={hospitalInformation} preferredTZ={preferredTZ}/>} />
+              <Route path="/serverStatus" element={<ServerDrillDown date={date} globalFilterChoice={globalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} hospitalInformation={hospitalInformation}/>} />
 
-              <Route exact path="/homePage/serverStatus" element={<ServerDrillDown date={date} globalFilterChoice={globalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} preferredTZ={preferredTZ} />}/>
-              <Route exact path="/leadership-mock" element={<LeadershipMock/>} />
-              <Route exact path="/applicationHealth/AppStatus" element={<ApplicationStatus date={date} appInsights={appInsights} globalFilterData={globalFilterData} preferredTZ={preferredTZ}/>} />
-              <Route exact path="/applicationHealth/NetworkStatus" element={<DummyUINetwork date={date} />} />
-              <Route exact path="/applicationHealth/InterfaceStatus" element={<InterfaceStatus date={date} appInsights={appInsights} globalFilterChoice={globalFilterChoice} globalFilterData={globalFilterData} preferredTZ={preferredTZ} />} />
-              <Route exact path="/applicationHealth/DatabaseMetrics" element={<DatabaseMetrics date={date} appInsights={appInsights} globalFilterChoice={globalFilterChoice} globalFilterData={globalFilterData} hospitalInformation={hospitalInformation} preferredTZ={preferredTZ}/>} />
-              <Route exact path="/applicationHealth/AppValidation" element={<ValidationDrilldown date={date} appInsights={appInsights} globalFilterChoice={globalFilterChoice} globalFilterData={globalFilterData} hospitalInformation={hospitalInformation} preferredTZ={preferredTZ}/>} />
-              <Route exact path="/applicationHealth/FileshareMetrics" element={<FileshareMetrics date={date} preferredTZ={preferredTZ}/>} />
-              <Route exact path="/applicationHealth/Security" element={<SecurityMetrics />} />
-               <Route exact path="/applicationHealth/Citrix" element={<Citrix backendSessionToken={accessTokenBackend} preferredTZ={preferredTZ} />} />
-              <Route exact path="/leadershipDashboard" element={<LeadershipDashboard appInsights={appInsights} />} />
-              <Route exact path="/majorIncidentAnalysis" element={<MiSummaryAnalysis date={date} appInsights={appInsights} globalFilterData={globalFilterData}/>} />
-              <Route exact path="/applicationOnboardingSummary" element={<ItelemetrySummary appInsights={appInsights} globalFilterData={globalFilterData}/>} />
-              <Route exact path="/applicationOnBoardingDetails" element={<OnboardedApplicationdata userProfileData={userProfile} appInsights={appInsights} />} />
-              <Route exact path="/alertSummary/alertSuppression" element={<AlertManager userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken}/>} />
-              <Route exact path="/alertSuppression" element={<AlertManager userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} />} />
-              <Route exact path="/auditReport" element={<AuditReport globalFilterData={globalFilterData} preferredTZ={preferredTZ} date={date} appInsights={appInsights} accounts = {accounts}/>} />
-              <Route exact path="/alertCreation" element={<AlertsCreation userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} globalFilterData={globalFilterData} supportGroup={userSupportGroups}/>} />
-              <Route exact path="/alertSummary/alertCreation" element={<AlertsCreation userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} globalFilterData={globalFilterData} supportGroup={userSupportGroups}/>} />
-              <Route exact path="/alert Creation" element={<AlertsCreation userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} globalFilterData={globalFilterData} supportGroup={userSupportGroups}/>} />
-              <Route exact path="/alert Suppression" element={<AlertSuppression userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} globalFilterData={globalFilterData}/>} />
-              <Route exact path="/homePage/applicationHealth/ApplicationInsights" element={<AppMonitoringDashboard date={date} appInsights={appInsights} />} />
-              <Route exact path="/alertSummary" element={<AlertSummary date={date} setDate={setDate} userProfile={userProfile} supportGroup={userSupportGroups} appInsights={appInsights}/>}/>
-              <Route exact path="/alertSummary/serverstatus" element={<ServerDrillDown date={date} globalFilterChoice={globalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} hospitalInformation={hospitalInformation} preferredTZ={preferredTZ}/>} />
-              <Route exact path="/bakingNow" element={<BakingNow appInsights={appInsights} preferredTZ={preferredTZ} date={date}/>} />
+              <Route path="/homePage/serverStatus" element={<ServerDrillDown date={date} globalFilterChoice={globalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} preferredTZ={preferredTZ} />}/>
+              <Route path="/leadership-mock" element={<LeadershipMock/>} />
+              <Route path="/applicationHealth/AppStatus" element={<ApplicationStatus date={date} appInsights={appInsights} globalFilterData={globalFilterData} preferredTZ={preferredTZ}/>} />
+              <Route path="/applicationHealth/NetworkStatus" element={<DummyUINetwork date={date} />} />
+              <Route path="/applicationHealth/InterfaceStatus" element={<InterfaceStatus date={date} appInsights={appInsights} globalFilterChoice={globalFilterChoice} globalFilterData={globalFilterData} preferredTZ={preferredTZ} />} />
+              <Route path="/applicationHealth/DatabaseMetrics" element={<DatabaseMetrics date={date} appInsights={appInsights} globalFilterChoice={globalFilterChoice} globalFilterData={globalFilterData} hospitalInformation={hospitalInformation} preferredTZ={preferredTZ}/>} />
+              <Route path="/applicationHealth/AppValidation" element={<ValidationDrilldown date={date} appInsights={appInsights} globalFilterChoice={globalFilterChoice} globalFilterData={globalFilterData} hospitalInformation={hospitalInformation} preferredTZ={preferredTZ}/>} />
+              <Route path="/applicationHealth/FileshareMetrics" element={<FileshareMetrics date={date} preferredTZ={preferredTZ}/>} />
+              <Route path="/applicationHealth/Security" element={<SecurityMetrics />} />
+              <Route path="/applicationHealth/Citrix" element={<Citrix backendSessionToken={accessTokenBackend} preferredTZ={preferredTZ} />} />
+              <Route path="/leadershipDashboard" element={<LeadershipDashboard appInsights={appInsights} />} />
+              <Route path="/majorIncidentAnalysis" element={<MiSummaryAnalysis date={date} appInsights={appInsights} globalFilterData={globalFilterData}/>} />
+              <Route path="/applicationOnboardingSummary" element={<ItelemetrySummary appInsights={appInsights} globalFilterData={globalFilterData}/>} />
+              <Route path="/applicationOnBoardingDetails" element={<OnboardedApplicationdata userProfileData={userProfile} appInsights={appInsights} />} />
+              <Route path="/alertSummary/alertSuppression" element={<AlertManager userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken}/>} />
+              <Route path="/alertSuppression" element={<AlertManager userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} />} />
+              <Route path="/auditReport" element={<AuditReport globalFilterData={globalFilterData} preferredTZ={preferredTZ} date={date} appInsights={appInsights} accounts = {accounts}/>} />
+              <Route path="/alertCreation" element={<AlertsCreation userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} globalFilterData={globalFilterData} supportGroup={userSupportGroups}/>} />
+              <Route path="/alertSummary/alertCreation" element={<AlertsCreation userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} globalFilterData={globalFilterData} supportGroup={userSupportGroups}/>} />
+              <Route path="/alert Creation" element={<AlertsCreation userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} globalFilterData={globalFilterData} supportGroup={userSupportGroups}/>} />
+              <Route path="/alert Suppression" element={<AlertSuppression userProfileData={userProfile} appInsights={appInsights} backendSessionToken={accessTokenBackend} setIsSessionExpiredBackendToken={setIsSessionExpiredBackendToken} globalFilterData={globalFilterData}/>} />
+              <Route path="/homePage/applicationHealth/ApplicationInsights" element={<AppMonitoringDashboard date={date} appInsights={appInsights} />} />
+              <Route path="/alertSummary" element={<AlertSummary date={date} setDate={setDate} userProfile={userProfile} supportGroup={userSupportGroups} appInsights={appInsights}/>}/>
+              <Route path="/alertSummary/serverstatus" element={<ServerDrillDown date={date} globalFilterChoice={globalFilterChoice} setGlobalFilterData={setGlobalFilterData} globalFilterData={globalFilterData} appInsights={appInsights} hospitalInformation={hospitalInformation} preferredTZ={preferredTZ}/>} />
+              <Route path="/bakingNow" element={<BakingNow appInsights={appInsights} preferredTZ={preferredTZ} date={date}/>} />
 
-              <Route exact path="/northStar" element={<NorthStarHome userProfileData={userProfile}/>} />
-              <Route exact path="/CRCA application wallboard" element={<AppPodsWallboard userProfileData={userProfile} appInsights={appInsights} supportGroup={userSupportGroups} backendSessionToken={accessTokenBackend} hospitalInformation={hospitalInformation} />} />
-              {/* <Route exact path="/leadership-mock" element={<LeadershipMock/>} /> */}
-              <Route exact path="/application heatmap" element={<SummaryOverview preferredTZ={preferredTZ} globalFilterData={globalFilterData}/>} />
+              <Route path="/northStar" element={<NorthStarHome userProfileData={userProfile}/>} />
+              <Route path="/CRCA application wallboard" element={<AppPodsWallboard userProfileData={userProfile} appInsights={appInsights} supportGroup={userSupportGroups} backendSessionToken={accessTokenBackend} hospitalInformation={hospitalInformation} />} />
+              <Route path="/application heatmap" element={<SummaryOverview preferredTZ={preferredTZ} globalFilterData={globalFilterData}/>} />
             </Routes>
             </Suspense>
           </Box>

@@ -3,7 +3,7 @@ import TableCell from '@mui/material/TableCell';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
-import { styled } from '@mui/system';
+import { styled } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 
 const StyledPopupContainer = styled('div')({

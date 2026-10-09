@@ -12,6 +12,7 @@ import TableCell, { tableCellClasses } from '@mui/material/TableCell';
 import SendIcon from '@mui/icons-material/Send';
 import { Button, Grid, LinearProgress, Paper, Typography, Tabs, Tab, Divider, Table, TableBody, TableContainer, TableHead,
   TableRow, Switch, TextField, Autocomplete } from '@mui/material';
+import { getUrl } from '../../../../environment';
 
 export default function ComplianceTelemetry() {
 
@@ -33,8 +34,7 @@ export default function ComplianceTelemetry() {
   });
   var [complianceData, setComplianceData] = useState({})
   const [filterChoiceSwitchButtton, setFilterChoiceSwitchButtton] = useState(false);
-  //var baseUrl =  "http://127.0.0.1:5000/api/"
-  var baseUrl =  "https://itelemetry.providence.org/api/"
+  var baseUrl = getUrl()
   
   const fetchSubscriptionData = async (page, limit) => {
     setLoading((prevLoading) => ({
@@ -183,7 +183,7 @@ export default function ComplianceTelemetry() {
         body: JSON.stringify(dataToSend)
       };
   
-      const response = await fetch('http://localhost:5000/api/createUserStory', requestOptions);
+      const response = await fetch(baseUrl + 'createUserStory', requestOptions);
       if (!response.ok) {
         throw new Error('Failed to create ADO ticket. Server responded with status ' + response.status);
       }

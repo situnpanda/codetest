@@ -4,7 +4,7 @@ The `jobs/` folder sits at the repository root (sibling of `backend/`) and
 contains standalone scripts that run out-of-process on a schedule.
 
 ```
-itelemetry/
+itelemetry-v3/
 ├── backend/
 ├── frontend/
 └── jobs/        <- batch/scheduled scripts
@@ -26,8 +26,8 @@ from domains.metrics.infrastructure.serverMetricsPerf import getServerPerf
 from shared.dataBase import queryDw
 ```
 
-`parents[1]` is the `itelemetry` root; appending `"backend"` points imports
-at `itelemetry/backend`.
+`parents[1]` is the `itelemetry-v3` root; appending `"backend"` points imports
+at `itelemetry-v3/backend`.
 
 ## Categories
 

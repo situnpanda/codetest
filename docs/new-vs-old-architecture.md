@@ -13,7 +13,7 @@ The "before" state below reflects the legacy baseline requested for this compari
 
 | Area | Before: CRCA-Services baseline | After: iTelemetry target | Why the after state is better |
 | ---- | ------------------------------ | --------------------------- | ----------------------------- |
-| Branching strategy | No clearly enforced promotion model; branch usage is effectively ad hoc in the legacy baseline | GitLab Flow with `feature/*` -> `main` -> `staging` -> `production`, plus a dedicated GitOps `helm` branch | Safer promotions, traceable releases, cleaner rollback, and less environment drift |
+| Branching strategy | No clearly enforced promotion model; branch usage is effectively ad hoc in the legacy baseline | Trunk-based: short-lived `feature/*` -> `main`; one image built once and promoted dev -> staging -> prod by an approval-gated pipeline; GitOps `helmcharts` branch; automatic `vX.Y.Z` release tags | Safer promotions, traceable releases, cleaner rollback, and less environment drift |
 | Environments | `production` and `staging` only | `development/test`, `staging`, and `production` | Earlier validation, lower release risk, better isolation for experiments and integration work |
 | Hosting model | IaaS-first deployment on VMs | Frontend and backend on AKS, jobs retained on VMs where scheduling fits best | Containerized rollout, self-healing pods, horizontal scaling, GitOps deployment, and clearer runtime boundaries |
 | Repository structure | Mixed legacy layout with a large backend surface, broad shared modules, and less explicit boundaries | Clear top-level split: `backend/`, `frontend/`, `jobs/`, `tests/`, `docs/` | Easier navigation, ownership, testing, and future decomposition |
@@ -26,10 +26,12 @@ The "before" state below reflects the legacy baseline requested for this compari
 
 | Before | After |
 | ------ | ----- |
-| No stable branch promotion model in the requested legacy baseline | GitLab Flow with explicit promotion across environment branches |
-| Higher risk of direct or inconsistent releases | Pull request and promotion based flow |
-| Weak release traceability | Exact commit promotion from `main` to `staging` to `production` |
-| Manual coordination heavy | Repeatable deployment path tied to branch movement |
+| No stable branch promotion model in the requested legacy baseline | Trunk-based: every change goes through a pull request into `main` |
+| Higher risk of direct or inconsistent releases | One pipeline: build once, then dev -> staging (approval) -> prod (approval) |
+| Weak release traceability | The same image tag runs in every environment; prod releases get a `vX.Y.Z` git tag and GitHub Release |
+| Manual coordination heavy | Pipeline writes the image tag to `helmcharts/values-*.yaml`; Argo CD deploys it |
+
+Full details: [branching-strategy.md](branching-strategy.md).
 
 ### Before diagram
 
@@ -42,18 +44,20 @@ flowchart LR
     Repo -.-> Note
 ```
 
-### After diagram: GitLab Flow
+### After diagram: trunk-based with approval-gated pipeline
 
 ```mermaid
 flowchart LR
     Feature[feature/*] --> PR[Pull request]
     PR --> Main[main]
-    Main --> Staging[staging]
-    Staging --> Production[production]
-    Main -. CI and tests .-> Staging
-    Staging -. validation and approval .-> Production
-    Helm[helm branch] -. deployment manifests and image tags .-> Staging
-    Helm -. deployment manifests and image tags .-> Production
+    Main --> Build[Build image once]
+    Build --> Dev[dev]
+    Dev -. approval .-> Staging[staging]
+    Staging -. approval .-> Prod[prod]
+    Prod --> Tag[vX.Y.Z tag + GitHub Release]
+    Helm[helmcharts branch values-*.yaml] -. Argo CD .-> Dev
+    Helm -. Argo CD .-> Staging
+    Helm -. Argo CD .-> Prod
 ```
 
 ### Advantages of the after state
@@ -62,7 +66,7 @@ flowchart LR
 | --------- | ------ |
 | Controlled promotion path | Production receives only commits already validated earlier in the chain |
 | Better rollback | Releases map to known commits and image versions |
-| Lower drift | Environment branches define what is deployed where |
+| Lower drift | `values-*.yaml` on the `helmcharts` branch defines what is deployed where |
 | Better auditability | Teams can answer what changed, when, and why with less manual reconstruction |
 
 ## 2. Environments
@@ -129,7 +133,7 @@ flowchart LR
     BackendPods --> Azure[Azure data services]
     JobsVM[Scheduled jobs on VMs] --> Azure
     CI[CI pipeline] --> JFrog[Container registry]
-    JFrog --> Helm[helm branch values]
+    JFrog --> Helm[helmcharts branch values]
     Helm --> Argo[Argo CD]
     Argo --> FrontendPods
     Argo --> BackendPods
@@ -214,7 +218,8 @@ flowchart TB
 ### After folder structure depiction
 
 ```text
-itelemetry/
+itelemetry-v3/
+|-- .github/workflows/deploy.yaml
 |-- backend/
 |   |-- main.py
 |   |-- apis/
@@ -265,4 +270,4 @@ flowchart LR
 
 ## Summary
 
-The legacy CRCA-Services baseline is best described as VM-oriented, environment-limited, and structurally harder to evolve. The iTelemetry target state improves that by introducing GitLab Flow, a `development/test` stage before staging and production, AKS-based runtime for the frontend and backend, and a domain-oriented folder structure that is deliberately aligned for future microservice extraction.
+The legacy CRCA-Services baseline is best described as VM-oriented, environment-limited, and structurally harder to evolve. The iTelemetry target state improves that by introducing trunk-based development with an approval-gated build-once pipeline and automatic release tags, a `development/test` stage before staging and production, AKS-based runtime for the frontend and backend, and a domain-oriented folder structure that is deliberately aligned for future microservice extraction.

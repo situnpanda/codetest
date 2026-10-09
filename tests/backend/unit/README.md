@@ -1,1 +1,1 @@
-# Unit tests — one folder per backend domain.
+# Unit tests — fast and isolated; patch `shared/` connectors, no Azure calls (`pytest.mark.unit`).
