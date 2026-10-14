@@ -4,8 +4,8 @@ The frontend has no JS test framework (no new dependencies added). Tests here us
 Python (static import audit) and Node's built-in `node:test` runner.
 
 ```powershell
-# from itelemetry-v3/
-c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini tests/frontend   # both
+# from the repo root
+python -m pytest -c tests/pytest.ini tests/frontend                                   # both
 node --test "tests/frontend/*.test.mjs"                                          # node only
 ```
 

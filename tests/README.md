@@ -28,12 +28,12 @@ tests/
 ## Running
 
 ```powershell
-# from itelemetry-v3/  — offline: unit + import audits (live tests skipped)
-c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini
+# from the repo root  — offline: unit + import audits (live tests skipped)
+python -m pytest -c tests/pytest.ini
 
 # live end-to-end (requires `az login` + network; read-only queries)
 $env:ITELEMETRY_LIVE_TESTS = '1'
-c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini
+python -m pytest -c tests/pytest.ini
 Remove-Item Env:ITELEMETRY_LIVE_TESTS
 
 # frontend environment tests only (Node 20+, no npm packages needed)

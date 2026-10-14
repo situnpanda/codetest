@@ -24,7 +24,7 @@ This folder contains the documentation for the **iTelemetry** (CRCA Services) pl
 ## Repository layout
 
 ```
-itelemetry-v3/
+itelemetry/
 ├── .github/workflows/deploy.yaml   Pipeline: build once → dev → staging → prod, then release tag
 ├── backend/     Flask API (apis/) + business logic (domains/) + connectors (shared/)
 ├── frontend/    Vite + React single-page application
@@ -37,11 +37,11 @@ itelemetry-v3/
 
 ```powershell
 # backend (http://127.0.0.1:5000)
-cd backend; c:/iTelemetry6/venv/Scripts/python.exe main.py
+cd backend; python main.py
 
 # frontend (http://localhost:3000)
 npm --prefix frontend run dev
 
-# tests (from itelemetry-v3/)
-c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini
+# tests (from the repo root)
+python -m pytest -c tests/pytest.ini
 ```

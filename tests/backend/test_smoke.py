@@ -1,4 +1,4 @@
-"""Smoke tests: the v3 backend layers resolve and the Flask app boots with all routes."""
+"""Smoke tests: the backend layers resolve and the Flask app boots with all routes."""
 import importlib.util
 
 import pytest

@@ -103,7 +103,7 @@ merges, that is the PR title):
 | `Fix alert threshold` | v1.4.0 | **v1.4.1** (patch, default) |
 | `Add reboot history page #minor` | v1.4.1 | **v1.5.0** |
 | `New auth flow #major` | v1.5.0 | **v2.0.0** |
-| first release (no tags yet) | — | **v0.0.1** |
+| first release (no tags yet) | — | **v2.0.0** |
 
 **Rules**
 
