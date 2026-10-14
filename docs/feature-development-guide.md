@@ -173,10 +173,11 @@ If it's a **new page** (not a section inside an existing page):
 
 ```powershell
 az login
+# from the repo root
 # terminal 1: backend on http://127.0.0.1:5000
-cd C:\iTelemetry6\itelemetry-v3\backend; c:/iTelemetry6/venv/Scripts/python.exe main.py
+cd backend; python main.py
 # terminal 2: frontend on http://localhost:3000
-npm --prefix "C:\iTelemetry6\itelemetry-v3\frontend" run dev
+npm --prefix frontend run dev
 ```
 
 The browser console should show `[Environment] OK frontend=development backend=development`.
@@ -204,13 +205,13 @@ The browser console should show `[Environment] OK frontend=development backend=d
 
 ## 6. Test
 
-From `C:\iTelemetry6\itelemetry-v3`:
+From the repo root:
 
 ```powershell
-c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini     # offline suite, run before every push
+python -m pytest -c tests/pytest.ini                                     # offline suite, run before every push
 npm --prefix frontend run build                                            # frontend build
 # optional, against real Azure (needs az login):
-$env:ITELEMETRY_LIVE_TESTS='1'; c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini; Remove-Item Env:ITELEMETRY_LIVE_TESTS
+$env:ITELEMETRY_LIVE_TESTS='1'; python -m pytest -c tests/pytest.ini; Remove-Item Env:ITELEMETRY_LIVE_TESTS
 ```
 
 Add a unit test in `tests/backend/unit/test_<feature>.py`:

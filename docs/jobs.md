@@ -4,7 +4,7 @@ The `jobs/` folder sits at the repository root (sibling of `backend/`) and
 contains standalone scripts that run out-of-process on a schedule.
 
 ```
-itelemetry-v3/
+<repo root>/
 ├── backend/
 ├── frontend/
 └── jobs/        <- batch/scheduled scripts
@@ -26,8 +26,8 @@ from domains.metrics.infrastructure.serverMetricsPerf import getServerPerf
 from shared.dataBase import queryDw
 ```
 
-`parents[1]` is the `itelemetry-v3` root; appending `"backend"` points imports
-at `itelemetry-v3/backend`.
+`parents[1]` is the repository root; appending `"backend"` points imports
+at `backend/`.
 
 ## Categories
 
@@ -41,7 +41,7 @@ at `itelemetry-v3/backend`.
 
 ```powershell
 cd jobs
-c:/iTelemetry6/venv/Scripts/python.exe <JobName>.py
+python <JobName>.py
 ```
 
 Jobs require `az login` and network access to the Azure data sources.

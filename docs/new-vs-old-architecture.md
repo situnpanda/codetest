@@ -218,7 +218,7 @@ flowchart TB
 ### After folder structure depiction
 
 ```text
-itelemetry-v3/
+<repo root>/
 |-- .github/workflows/deploy.yaml
 |-- backend/
 |   |-- main.py

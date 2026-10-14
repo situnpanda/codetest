@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# iTelemetry v3 — files that must NOT be committed
+# iTelemetry — files that must NOT be committed
 # ---------------------------------------------------------------------------
 
 # Python bytecode / build artifacts

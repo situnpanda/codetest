@@ -12,6 +12,7 @@ env:
   REGISTRY: artifactory.wu2.cloud.providence.org
   IMAGE_BASE: artifactory.wu2.cloud.providence.org/docker-itelemetryplatformengineering
   HELM_BRANCH: helmcharts
+  RELEASE_VERSION_FLOOR: v2.0.0   # first release version; versions never go below this
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -200,7 +201,7 @@ jobs:
       # semantic version tag (vMAJOR.MINOR.PATCH) on main. Patch bump by default;
       # put "#minor" or "#major" in the merge commit message (squash: the PR title)
       # to bump those instead. A commit that already has a v* tag (e.g. a rollback
-      # re-run) keeps its existing version.
+      # re-run) keeps its existing version. Versions start at RELEASE_VERSION_FLOOR.
       - name: Tag release on main
         id: release
         run: |
@@ -231,6 +232,12 @@ jobs:
           elif grep -q '#minor' <<< "${msg}"; then minor=$((minor + 1)); patch=0
           else patch=$((patch + 1)); fi
           VERSION="v${major}.${minor}.${patch}"
+
+          lowest=$(printf '%s\n' "${VERSION#v}" "${RELEASE_VERSION_FLOOR#v}" | sort -V | head -n1)
+          if [ "${VERSION}" != "${RELEASE_VERSION_FLOOR}" ] && [ "${lowest}" = "${VERSION#v}" ]; then
+            echo "Computed ${VERSION} is below floor ${RELEASE_VERSION_FLOOR}; using ${RELEASE_VERSION_FLOOR}."
+            VERSION="${RELEASE_VERSION_FLOOR}"
+          fi
 
           git tag -a "${VERSION}" "${GITHUB_SHA}" -m "Release ${VERSION} (image ${IMAGE_TAG})"
           git push origin "refs/tags/${VERSION}"

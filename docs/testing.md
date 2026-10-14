@@ -1,6 +1,6 @@
 # Testing
 
-Automated tests live in `tests/` at the root of `itelemetry-v3/`. They sit outside
+Automated tests live in `tests/` at the repository root. They sit outside
 `backend/` and `frontend/` so one suite can cover both apps (and `jobs/` later).
 For the per-file list see [tests/README.md](../tests/README.md).
 
@@ -37,15 +37,15 @@ tests/
 ## Running
 
 ```powershell
-# from itelemetry-v3/  (offline: import audits, smoke, unit, frontend; live tests skipped)
-c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini
+# from the repo root  (offline: import audits, smoke, unit, frontend; live tests skipped)
+python -m pytest -c tests/pytest.ini
 
 # unit tests only
-c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini -m unit
+python -m pytest -c tests/pytest.ini -m unit
 
 # live end-to-end (requires az login + network)
 $env:ITELEMETRY_LIVE_TESTS = '1'
-c:/iTelemetry6/venv/Scripts/python.exe -m pytest -c tests/pytest.ini
+python -m pytest -c tests/pytest.ini
 Remove-Item Env:ITELEMETRY_LIVE_TESTS
 
 # frontend tests only (Node 20+, no npm packages needed)
