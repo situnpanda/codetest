@@ -3,11 +3,16 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import IconButton from '@mui/material/IconButton';
 import Badge from '@mui/material/Badge';
 import { fetchEarlyWarnings,fetchWarningEvents } from '../../shared/APIs/fetchAPIs';
+import { updateEarlyWarningStatus } from '../../shared/APIs/updateAPIs';
+import CircularProgress from '@mui/material/CircularProgress';
 import { Menu, MenuItem, Card, CardContent, Typography, Grid, Box, Button, Divider, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Paper, Accordion, AccordionSummary, AccordionDetails, Dialog, DialogTitle, DialogContent, DialogActions, Collapse, TablePagination, TextField, Autocomplete, Chip, Tooltip } from '@mui/material';
 import { convertTimeToPreferredTZ_fromUtc } from '../../shared/Timestamp/PreferenceConversion';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import { styled } from '@mui/material/styles';
 import {getUrl} from "../../../environment"
 
@@ -311,10 +316,20 @@ export default function ChatOpsHeader({ backendSessionToken, supportGroup, prefe
                 onClose={handleCloseDialog}
                 fullWidth
                 maxWidth="xl"
-                sx={{ '& .MuiDialog-paper': { height: '90vh' } }}
+                PaperProps={{ sx: { height: '90vh', borderRadius: 3, overflow: 'hidden', boxShadow: '0 20px 60px rgba(15, 23, 42, 0.24)' } }}
             >
-                <DialogTitle>List of Early Warnings</DialogTitle>
-                <DialogContent sx={{ display: 'flex', flexDirection: 'column' }}>
+                <DialogTitle sx={{ px: { xs: 1, sm: 1.5 }, py: 1, borderBottom: '1px solid #E6E8EE', bgcolor: '#FFFFFF' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: 1.5, display: 'grid', placeItems: 'center', bgcolor: '#E8F0FE', color: '#00338E' }}>
+                            <WarningAmberRoundedIcon fontSize="small" />
+                        </Box>
+                        <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1C2B3A', lineHeight: 1.2 }}>Early Warnings</Typography>
+                            <Typography variant="caption" color="text.secondary">Review and manage application warning events</Typography>
+                        </Box>
+                    </Box>
+                </DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', p: { xs: 0.75, sm: 1.25 }, bgcolor: '#F6F8FB', overflow: 'hidden' }}>
                     <ChatOpsViewAll 
                         eventsData={warningEvents} 
                         earlyWarningData={notificationsList}
@@ -322,17 +337,21 @@ export default function ChatOpsHeader({ backendSessionToken, supportGroup, prefe
                         setIdFilter={setIdFilter}
                         applicationFamilyFilter={applicationFamilyFilter}
                         setApplicationFamilyFilter={setApplicationFamilyFilter}
+                        backendSessionToken={backendSessionToken}
+                        onStatusUpdated={() => { fetchEarlyWarningsData(); fetchWarningEventsData(); }}
                     />
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDialog}>Close</Button>
+                <DialogActions sx={{ px: { xs: 1, sm: 1.5 }, py: 0.75, borderTop: '1px solid #E6E8EE', bgcolor: '#FFFFFF' }}>
+                    <Button onClick={handleCloseDialog} size="small" variant="outlined" sx={{ textTransform: 'none', borderColor: '#B8C5D1', color: '#29445F', fontWeight: 700 }}>Close</Button>
                 </DialogActions>
             </Dialog>
         </>
     )
 }
 
-const Row = ({ warning,events }) => {
+const Row = ({ warning, events, backendSessionToken, onStatusUpdated }) => {
+    const [ackState, setAckState] = useState({ open: false, loading: false, success: null, message: '' });
+    const [resolveState, setResolveState] = useState({ open: false, loading: false, submitting: false, events: [], message: '', success: null, warningId: null });
 
     useEffect(()=>{
         console.log(warning, events)
@@ -398,13 +417,192 @@ const Row = ({ warning,events }) => {
     var handleButtonClick = (actionType, warningId, applicationFamily) => {
         var domain = baseUrl.slice(0,-5)
         console.log(domain)
-        var url = `${domain}/applicationHealth?Name=${applicationFamily}&Type=Application%20Family&EarlyWarningId=${warningId}&EarlyWarningUpdate=${actionType}`;
+        var url = `${domain}/applicationHealth?Name=${encodeURIComponent(applicationFamily)}&Type=Application%20Family&EarlyWarningId=${warningId}&EarlyWarningUpdate=${actionType}`;
         window.open(url, '_blank');
+    }
+
+    var handleResolve = (warningId) => {
+        setResolveState({ open: true, loading: true, submitting: false, events: [], message: '', success: null, warningId });
+        fetchWarningEvents(backendSessionToken, { "EarlyWarningID": [warningId], "status": ["Acknowledged", "Resolved"] })
+        .then((data) => {
+            var list = Object.keys(data?.["Issue ID"] || {}).map((k) => {
+                var cond = (data["Condition"]?.[k] || "").split(';');
+                var status = (data["Status"]?.[k] || "").toLowerCase();
+                return {
+                    id: data["Issue ID"][k],
+                    resourceDetails: getresourceDetails(data["Resource Name"]?.[k], (data["Resource Type"]?.[k] || "").toLowerCase()),
+                    condition: (cond[0] || "").trim(),
+                    reason: (cond[cond.length - 1] || "").trim(),
+                    existingComments: data["Comments"]?.[k] || "",
+                    isResolved: status === "resolved",
+                    comment: "",
+                    type: ""
+                };
+            });
+            var hasPending = list.some(e => !e.isResolved);
+            if (hasPending) {
+                setResolveState((s) => ({ ...s, loading: false, events: list }));
+            } else if (list.length > 0) {
+                // All events already resolved -> resolve the Early Warning itself
+                setResolveState((s) => ({ ...s, message: 'All warning events are resolved. Updating Early Warning status...' }));
+                submitResolve(warningId, []);
+            } else {
+                setResolveState((s) => ({ ...s, loading: false, success: false, message: 'Early Warning is not in Acknowledged state. Please acknowledge it before resolving.' }));
+            }
+        })
+        .catch((error) => {
+            console.error("Error fetching warning events:", error);
+            setResolveState((s) => ({ ...s, loading: false, success: false, message: 'Failed to load warning events. Please try again.' }));
+        });
+    }
+
+    var submitResolve = (warningId, pendingEvents) => {
+        setResolveState((s) => ({ ...s, loading: true, submitting: true }));
+        updateEarlyWarningStatus(backendSessionToken, {
+            "EarlyWarningID": [warningId],
+            "StatusEarlyWarning": ["Resolved"],
+            "WarningEventsID": pendingEvents.map(e => e.id),
+            "StatusWarningEvents": pendingEvents.map(() => "Resolved"),
+            "Comments": pendingEvents.map(e => `[${e.type}] ${e.comment.trim()}`)
+        })
+        .then(() => {
+            setResolveState((s) => ({ ...s, loading: false, submitting: false, events: [], success: true, message: `${getID(warning["Sequential ID"])} resolved successfully.` }));
+            var actionItem = localStorage.getItem("earlyWarningActionItem") || 0;
+            localStorage.setItem("earlyWarningActionItem", parseInt(actionItem) + 1);
+            if (onStatusUpdated) onStatusUpdated();
+        })
+        .catch((error) => {
+            console.error("Error resolving early warning:", error);
+            setResolveState((s) => ({ ...s, loading: false, submitting: false, success: false, message: 'Failed to resolve. Please try again.' }));
+        });
+    }
+
+    var updateResolveEvent = (id, field, value) => {
+        setResolveState((s) => ({ ...s, events: s.events.map(e => e.id === id ? { ...e, [field]: value } : e) }));
+    }
+
+    var pendingResolveEvents = resolveState.events.filter(e => !e.isResolved);
+    var canSubmitResolve = pendingResolveEvents.length > 0 && pendingResolveEvents.every(e => e.comment.trim() !== '' && e.type !== '');
+
+    var handleAcknowledge = (warningId) => {
+        setAckState({ open: true, loading: true, success: null, message: 'Updating status to Acknowledged...' });
+        updateEarlyWarningStatus(backendSessionToken, {
+            "EarlyWarningID": [warningId],
+            "StatusEarlyWarning": ["Acknowledged"],
+            "WarningEventsID": [],
+            "StatusWarningEvents": [],
+            "Comments": []
+        })
+        .then(() => {
+            setAckState({ open: true, loading: false, success: true, message: `${getID(warning["Sequential ID"])} acknowledged successfully.` });
+            var actionItem = localStorage.getItem("earlyWarningActionItem") || 0;
+            localStorage.setItem("earlyWarningActionItem", parseInt(actionItem) + 1);
+            if (onStatusUpdated) onStatusUpdated();
+        })
+        .catch((error) => {
+            console.error("Error acknowledging early warning:", error);
+            setAckState({ open: true, loading: false, success: false, message: 'Failed to acknowledge. Please try again.' });
+        });
     }
 
     return (
         <React.Fragment>
-            <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
+            <Dialog open={ackState.open} onClose={() => !ackState.loading && setAckState((s) => ({ ...s, open: false }))} PaperProps={{ sx: { borderRadius: 3, minWidth: { sm: 400 } } }}>
+                <DialogTitle sx={{ px: 3, py: 2, borderBottom: '1px solid #E6E8EE' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                        <Box sx={{ width: 36, height: 36, borderRadius: '50%', display: 'grid', placeItems: 'center', bgcolor: ackState.success === false ? '#FDECEC' : '#E8F5EE', color: ackState.success === false ? '#C62828' : '#16834A' }}>
+                            <CheckCircleOutlineRoundedIcon fontSize="small" />
+                        </Box>
+                        <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1C2B3A' }}>Acknowledge early warning</Typography>
+                            <Typography variant="caption" color="text.secondary">{getID(warning["Sequential ID"])}</Typography>
+                        </Box>
+                    </Box>
+                </DialogTitle>
+                <DialogContent sx={{ display: 'flex', alignItems: 'center', gap: 2, px: 3, py: 3 }}>
+                    {ackState.loading && <CircularProgress size={22} />}
+                    <Typography color={ackState.success === false ? 'error' : 'text.primary'}>{ackState.message}</Typography>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, py: 1.5, borderTop: '1px solid #E6E8EE' }}>
+                    <Button disabled={ackState.loading} onClick={() => setAckState((s) => ({ ...s, open: false }))} variant="contained" sx={{ textTransform: 'none', fontWeight: 700 }}>Close</Button>
+                </DialogActions>
+            </Dialog>
+            <Dialog open={resolveState.open} fullWidth maxWidth="lg" onClose={() => !resolveState.loading && setResolveState((s) => ({ ...s, open: false }))} PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+                <DialogTitle sx={{ px: 3, py: 2, borderBottom: '1px solid #E6E8EE' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                        <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: '#E8F0FE', color: '#00338E' }}><WarningAmberRoundedIcon /></Box>
+                        <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1C2B3A' }}>Resolve early warning</Typography>
+                            <Typography variant="caption" color="text.secondary">{getID(warning["Sequential ID"])} · {warning["Application Family"]}</Typography>
+                        </Box>
+                    </Box>
+                </DialogTitle>
+                <DialogContent sx={{ p: 3, bgcolor: '#F8FAFC' }}>
+                    {resolveState.loading ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 4, justifyContent: 'center' }}>
+                            <CircularProgress size={26} />
+                            <Typography>{resolveState.submitting ? 'Updating status to Resolved...' : (resolveState.message || 'Checking warning events...')}</Typography>
+                        </Box>
+                    ) : resolveState.events.length > 0 ? (
+                        <>
+                            <Typography variant="body2" sx={{ mb: 1.5 }}>
+                                Provide a comment and choose an event type for each warning event below.
+                            </Typography>
+                            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #E1E8F0', borderRadius: 2, overflow: 'hidden' }}>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <StyledTableCell>Resource Details</StyledTableCell>
+                                        <StyledTableCell>Condition</StyledTableCell>
+                                        <StyledTableCell>Utilization/Status</StyledTableCell>
+                                        <StyledTableCell sx={{ width: '28%' }}>Comments</StyledTableCell>
+                                        <StyledTableCell sx={{ width: '18%' }}>Event Type</StyledTableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {resolveState.events.map((e) => (
+                                        <StyledTableRow key={e.id} sx={e.isResolved ? { opacity: 0.6 } : {}}>
+                                            <StyledTableCell>
+                                                {Object.entries(e.resourceDetails).map(([k, v]) => (
+                                                    <Typography key={k} variant="caption" display="block"><strong>{k}:</strong> {v}</Typography>
+                                                ))}
+                                            </StyledTableCell>
+                                            <StyledTableCell>{e.condition}</StyledTableCell>
+                                            <StyledTableCell>{e.reason}</StyledTableCell>
+                                            <StyledTableCell>
+                                                {e.isResolved ? (e.existingComments || '-') : (
+                                                    <TextField size="small" fullWidth multiline maxRows={3} value={e.comment} placeholder="Add comments"
+                                                        onChange={(ev) => updateResolveEvent(e.id, 'comment', ev.target.value)} />
+                                                )}
+                                            </StyledTableCell>
+                                            <StyledTableCell>
+                                                {e.isResolved ? 'Resolved' : (
+                                                    <TextField select size="small" fullWidth value={e.type}
+                                                        onChange={(ev) => updateResolveEvent(e.id, 'type', ev.target.value)}>
+                                                        {['True Positive', 'False Positive', 'Remove from Alerting'].map(t => (
+                                                            <MenuItem key={t} value={t}>{t}</MenuItem>
+                                                        ))}
+                                                    </TextField>
+                                                )}
+                                            </StyledTableCell>
+                                        </StyledTableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            </TableContainer>
+                        </>
+                    ) : (
+                        <Typography color={resolveState.success === false ? 'error' : 'text.primary'} sx={{ py: 2 }}>{resolveState.message}</Typography>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ px: 3, py: 1.5, borderTop: '1px solid #E6E8EE', bgcolor: '#FFFFFF' }}>
+                    {!resolveState.loading && resolveState.events.length > 0 && (
+                        <Button variant="contained" disabled={!canSubmitResolve} onClick={() => submitResolve(resolveState.warningId, pendingResolveEvents)} sx={{ textTransform: 'none', fontWeight: 700 }}>Resolve warning</Button>
+                    )}
+                    <Button disabled={resolveState.loading} onClick={() => setResolveState((s) => ({ ...s, open: false }))} variant="outlined" sx={{ textTransform: 'none', borderColor: '#B8C5D1', color: '#29445F', fontWeight: 700 }}>Close</Button>
+                </DialogActions>
+            </Dialog>
+            <TableRow sx={{ '& > *': { borderBottom: 'unset' }, '&:hover': { bgcolor: '#F8FBFF' } }}>
                 <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <IconButton
@@ -436,27 +634,14 @@ const Row = ({ warning,events }) => {
                     </Box>
                 </TableCell>
                 <TableCell component="th" scope="row">
-                    {getID(warning["Sequential ID"])}
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#00338E' }}>{getID(warning["Sequential ID"])}</Typography>
                 </TableCell>
                 <TableCell component="th" scope="row">
                     {warning["Application Family"]}
                 </TableCell>
-                <TableCell>{warning["Summary"]}</TableCell>
+                <TableCell sx={{ maxWidth: 360 }}><Typography variant="body2" sx={{ color: '#34495E', lineHeight: 1.45 }}>{warning["Summary"]}</Typography></TableCell>
                 <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Box
-                            sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                backgroundColor: statusColors[warning["Status"]] || 'grey',
-                                mr: 1,
-                            }}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                            {warning["Status"]}
-                        </Typography>
-                    </Box>
+                    <Chip label={warning["Status"]} size="small" sx={{ fontWeight: 700, bgcolor: warning["Status"] === 'New' ? '#E8F5EE' : warning["Status"] === 'Acknowledged' ? '#FFF4D6' : '#EEF2F6', color: warning["Status"] === 'New' ? '#16834A' : warning["Status"] === 'Acknowledged' ? '#8A5A00' : '#536577' }} />
                 </TableCell>
                 <TableCell>{warning["Time Generated"]}</TableCell>
                 <TableCell>
@@ -464,9 +649,11 @@ const Row = ({ warning,events }) => {
                         {warning["Status"] === "New" && (
                             <Grid item md={6} xs={12}>
                                 <Button
-                                    variant="outlined"
+                                    variant="contained"
                                     size="small"
-                                    onClick={() => handleButtonClick('acknowledge', warning["Early Warning ID"], warning["Application Family"])}
+                                    disabled={ackState.loading}
+                                    onClick={() => handleAcknowledge(warning["Early Warning ID"])}
+                                    sx={{ textTransform: 'none', fontWeight: 700 }}
                                 >
                                     Acknowledge
                                 </Button>
@@ -476,9 +663,10 @@ const Row = ({ warning,events }) => {
                         {warning["Status"] === "Acknowledged" && (
                             <Grid item md={6} xs={12}>
                                 <Button
-                                    variant="outlined"
+                                    variant="contained"
                                     size="small"
-                                    onClick={() => handleButtonClick('resolve', warning["Early Warning ID"], warning["Application Family"])}
+                                    onClick={() => handleResolve(warning["Early Warning ID"])}
+                                    sx={{ textTransform: 'none', fontWeight: 700 }}
                                 >
                                     Resolve
                                 </Button>
@@ -490,10 +678,11 @@ const Row = ({ warning,events }) => {
             <TableRow>
                 <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
-                        <Box sx={{ margin: 1 }}>
-                            <Typography variant="h6" gutterBottom component="div">
+                        <Box sx={{ m: 1.5, p: 1.5, bgcolor: '#F8FAFC', borderRadius: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 700, color: '#1C2B3A' }}>
                                 Warning Events
                             </Typography>
+                            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #E1E8F0', borderRadius: 1.5, overflow: 'auto' }}>
                             <Table size="small" aria-label="events">
                                 <TableHead>
                                     <TableRow>
@@ -535,6 +724,7 @@ const Row = ({ warning,events }) => {
                                     })}
                                 </TableBody>
                             </Table>
+                            </TableContainer>
                         </Box>
                     </Collapse>
                 </TableCell>
@@ -543,7 +733,7 @@ const Row = ({ warning,events }) => {
     );
 };
 
-export function ChatOpsViewAll({ eventsData, earlyWarningData, idFilter, setIdFilter, applicationFamilyFilter, setApplicationFamilyFilter }) {
+export function ChatOpsViewAll({ eventsData, earlyWarningData, idFilter, setIdFilter, applicationFamilyFilter, setApplicationFamilyFilter, backendSessionToken, onStatusUpdated }) {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [statusFilter, setStatusFilter] = useState('All');
@@ -607,6 +797,13 @@ export function ChatOpsViewAll({ eventsData, earlyWarningData, idFilter, setIdFi
         });
     }, [warnings, statusFilter, applicationFamilyFilter, idFilter]);
 
+    const warningCounts = React.useMemo(() => ({
+        All: warnings.length,
+        New: warnings.filter((warning) => warning.Status === 'New').length,
+        Acknowledged: warnings.filter((warning) => warning.Status === 'Acknowledged').length,
+        Resolved: warnings.filter((warning) => warning.Status === 'Resolved').length,
+    }), [warnings]);
+
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
     };
@@ -618,43 +815,29 @@ export function ChatOpsViewAll({ eventsData, earlyWarningData, idFilter, setIdFi
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Box display="flex" alignItems="center" gap={2} sx={{ mb: 2 }}>
-                <Autocomplete
-                    freeSolo
-                    size="small"
-                    options={appFamilyOptions}
-                    value={applicationFamilyFilter}
-                    onInputChange={(event, newValue) => {
-                        setApplicationFamilyFilter(newValue || '');
-                    }}
-                    renderInput={(params) => (
-                        <TextField
-                            {...params}
-                            label="Application Family"
-                            sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#fff', fontSize: { xs: 10, sm: 11, md: 12 }, borderRadius: 2, minHeight: 38, width: '100%', '& fieldset': { border: '1px solid #ccc' } }}}
-                        />
-                    )}
-                    sx={{ width: 300 }}
-                />
-                <Autocomplete
-                    freeSolo
-                    size="small"
-                    options={idOptions}
-                    value={idFilter}
-                    onInputChange={(event, newValue) => {
-                        setIdFilter(newValue || '');
-                    }}
-                    renderInput={(params) => (
-                        <TextField
-                            {...params}
-                            label="ID"
-                            sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#fff', fontSize: { xs: 10, sm: 11, md: 12 }, borderRadius: 2, minHeight: 38, width: '100%', '& fieldset': { border: '1px solid #ccc' } }}}
-                        />
-                    )}
-                    sx={{ width: 200 }}
-                />
-                <Box sx={{ flexGrow: 1 }} />
-                <Box display="flex" gap={1} flexWrap="wrap">
+            <Box sx={{ p: { xs: 0.75, sm: 1 }, mb: 1, border: '1px solid #E1E8F0', borderRadius: 2, bgcolor: '#FFFFFF' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625, flexWrap: 'wrap' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#1C2B3A', mr: 0.25 }}>Filters</Typography>
+                    <Autocomplete
+                        freeSolo
+                        size="small"
+                        options={appFamilyOptions}
+                        value={applicationFamilyFilter}
+                        onInputChange={(event, newValue) => setApplicationFamilyFilter(newValue || '')}
+                        renderInput={(params) => <TextField {...params} label="Application family" placeholder="Search application" />}
+                        sx={{ width: { xs: '100%', sm: 250 }, '& .MuiOutlinedInput-root': { bgcolor: '#fff', borderRadius: 1.5, minHeight: 34, fontSize: 12 }, '& .MuiInputLabel-root': { fontSize: 12 } }}
+                    />
+                    <Autocomplete
+                        freeSolo
+                        size="small"
+                        options={idOptions}
+                        value={idFilter}
+                        onInputChange={(event, newValue) => setIdFilter(newValue || '')}
+                        renderInput={(params) => <TextField {...params} label="Early warning ID" placeholder="EW0000001" />}
+                        sx={{ width: { xs: '100%', sm: 190 }, '& .MuiOutlinedInput-root': { bgcolor: '#fff', borderRadius: 1.5, minHeight: 34, fontSize: 12 }, '& .MuiInputLabel-root': { fontSize: 12 } }}
+                    />
+                    <Box sx={{ flexGrow: 1 }} />
+                    <Box display="flex" gap={0.375} flexWrap="wrap">
                     {['All', 'New', 'Acknowledged', 'Resolved'].map((status) => {
                         const statusStyle = {
                             'All': { border: '#757575', bg: '#EEEEEE', text: '#424242' },
@@ -666,50 +849,63 @@ export function ChatOpsViewAll({ eventsData, earlyWarningData, idFilter, setIdFi
                         return (
                             <Box
                                 key={status}
-                                px={1.5}
+                                px={0.75}
                                 py={0.3}
                                 borderRadius={999}
                                 bgcolor={isActive ? statusStyle[status].border : statusStyle[status].bg}
                                 onClick={() => setStatusFilter(status)}
-                                sx={{ cursor: 'pointer', transition: 'all 0.2s', '&:hover': { transform: 'scale(1.05)', boxShadow: 1 } }}
+                                sx={{ cursor: 'pointer', transition: 'all 0.2s', border: `1px solid ${isActive ? statusStyle[status].border : 'transparent'}`, '&:hover': { boxShadow: '0 2px 6px rgba(15, 23, 42, 0.14)' } }}
                             >
-                                <Typography fontSize={{ xs: 9, sm: 10, md: 11 }} fontWeight={600} color={isActive ? '#fff' : statusStyle[status].text}>{status}</Typography>
+                                <Typography fontSize={10} fontWeight={600} color={isActive ? '#fff' : statusStyle[status].text}>{status} ({warningCounts[status]})</Typography>
                             </Box>
                         );
                     })}
+                    </Box>
                 </Box>
             </Box>
-            <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
-                <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #E6E8EE', borderRadius: 2 }}>
-                    <Table size="small" aria-label="collapsible table">
+            <Paper elevation={0} sx={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', border: '1px solid #E1E8F0', borderRadius: 2, bgcolor: '#FFFFFF', overflow: 'hidden', '& .MuiTableCell-root': { py: 0.75, fontSize: 12 } }}>
+                <TableContainer sx={{ flexGrow: 1, overflow: 'auto' }}>
+                    <Table size="small" aria-label="Early warnings table" stickyHeader>
                         <TableHead>
-                            <TableRow sx={{ bgcolor: '#00338e' }}>
-                                <TableCell />
-                                <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: 13, py: 1.5 }}>ID</TableCell>
-                                <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: 13, py: 1.5 }}>Application Family</TableCell>
-                                <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: 13, py: 1.5 }}>Summary</TableCell>
-                                <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: 13, py: 1.5 }}>Status</TableCell>
-                                <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: 13, py: 1.5 }}>Time Generated</TableCell>
-                                <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: 13, py: 1.5 }}>Actions</TableCell>
+                            <TableRow>
+                                <TableCell sx={{ bgcolor: '#00338E', color: '#fff' }} />
+                                <TableCell sx={{ bgcolor: '#00338E', color: '#fff', fontWeight: 700, fontSize: 11, py: 0.75 }}>ID</TableCell>
+                                <TableCell sx={{ bgcolor: '#00338E', color: '#fff', fontWeight: 700, fontSize: 11, py: 0.75 }}>Application family</TableCell>
+                                <TableCell sx={{ bgcolor: '#00338E', color: '#fff', fontWeight: 700, fontSize: 11, py: 0.75 }}>Summary</TableCell>
+                                <TableCell sx={{ bgcolor: '#00338E', color: '#fff', fontWeight: 700, fontSize: 11, py: 0.75 }}>Status</TableCell>
+                                <TableCell sx={{ bgcolor: '#00338E', color: '#fff', fontWeight: 700, fontSize: 11, py: 0.75 }}>Time generated</TableCell>
+                                <TableCell sx={{ bgcolor: '#00338E', color: '#fff', fontWeight: 700, fontSize: 11, py: 0.75 }}>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {filteredWarnings.slice(page * rowsPerPage, filteredWarnings.length < (page * rowsPerPage + rowsPerPage) ? filteredWarnings.length : (page * rowsPerPage + rowsPerPage)).map((warning, index) => (
-                                <Row key={`${warning['Early Warning ID']}-${index}`} warning={warning} events={groupedEvents[warning['Early Warning ID']] || []} />
+                            {filteredWarnings.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={7} sx={{ py: 7, textAlign: 'center', color: '#60758D' }}>
+                                        <WarningAmberRoundedIcon sx={{ color: '#B8C5D1', mb: 1 }} />
+                                        <Typography sx={{ fontWeight: 700, color: '#38516A' }}>No early warnings found</Typography>
+                                        <Typography variant="body2">Try changing the status, application family, or ID filters.</Typography>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {filteredWarnings.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((warning, index) => (
+                                <Row key={`${warning['Early Warning ID']}-${index}`} warning={warning} events={groupedEvents[warning['Early Warning ID']] || []} backendSessionToken={backendSessionToken} onStatusUpdated={onStatusUpdated} />
                             ))}
                         </TableBody>
                     </Table>
                 </TableContainer>
-            </Box>
-            <TablePagination
-                rowsPerPageOptions={[10, 25, 100]}
-                component="div"
-                count={filteredWarnings.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-            />
+                <Box sx={{ borderTop: '1px solid #E1E8F0', bgcolor: '#F8FAFC' }}>
+                    <TablePagination
+                        rowsPerPageOptions={[10, 25, 100]}
+                        component="div"
+                        count={filteredWarnings.length}
+                        rowsPerPage={rowsPerPage}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        sx={{ fontSize: 12, '& .MuiTablePagination-toolbar': { minHeight: 40, px: { xs: 0.5, sm: 1 } }, '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': { fontSize: 12 }, '& .MuiIconButton-root': { p: 0.5 } }}
+                    />
+                </Box>
+            </Paper>
         </Box>
     );
 }

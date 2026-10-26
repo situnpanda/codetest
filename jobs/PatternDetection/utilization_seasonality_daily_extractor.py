@@ -25,6 +25,15 @@ The Data column is a JSON array of anomaly objects:
         ...
     ]
 
+It also embeds a compact per-(day-of-week, hour) "baseline" block so a separate
+realtime extractor can score a single new sample WITHOUT re-running MSTL:
+    "baseline": {
+        "method": "mstl_dow_hour",
+        "z_threshold": 3.5,
+        "z_score_formula": "0.6745 * ((actual - expected) - resid_median) / resid_mad",
+        "buckets": {"<dow>_<hour>": {"expected", "resid_median", "resid_mad"}, ...}
+    }
+
 Timestamps are emitted exactly as they arrive from ADX (UTC) — no timezone
 conversion is performed.
 
@@ -49,9 +58,9 @@ from sklearn.linear_model import LinearRegression
 root = Path(__file__).resolve().parents[2]
 sys.path.append(str(root))
 
-from shared.adx import readFromADX
-from shared.dataBase import queryDw
-from shared.keyVault import connectToKeyVault
+from Modules.ADX import readFromADX
+from Modules.dataBase import queryDw
+from Modules.keyVault import connectToKeyVault
 from azure.identity import AzureCliCredential,ManagedIdentityCredential
 from azure.kusto.data import KustoConnectionStringBuilder
 from azure.kusto.ingest import QueuedIngestClient, IngestionProperties
@@ -196,6 +205,69 @@ def _mad(values):
     return float(np.median(np.abs(arr - np.median(arr))))
 
 
+def _build_baseline(expected, resid, bucket_stats, trend):
+    """Compact per-(day-of-week, hour) baseline for a lightweight realtime check.
+
+    A realtime extractor cannot cheaply re-run MSTL on a single new sample, so
+    we freeze what it needs to score one point:
+      - expected     : representative expected utilization for that (dow, hour)
+                       bucket (median of trend+seasonal over the 30-day window).
+      - resid_median : per-bucket residual center (usually ~0).
+      - resid_mad    : per-bucket robust spread (the tolerance).
+
+    Realtime scoring (matches the batch Gate-2 modified z-score):
+        bucket  = (timestamp.dayofweek, timestamp.hour)
+        z_mod   = 0.6745 * ((actual - expected) - resid_median) / resid_mad
+        anomaly = abs(z_mod) >= z_threshold
+    Fall back to global_resid_mad when a bucket is missing.
+
+    trend_slope_per_day / trend_last let a realtime caller optionally extrapolate
+    the expected level forward from baseline_end_utc for slow-drifting metrics.
+    """
+    exp = expected.dropna()
+    r = resid.dropna()
+    if exp.empty or r.empty or not bucket_stats:
+        return None
+
+    ekeys = list(zip(exp.index.dayofweek.tolist(), exp.index.hour.tolist()))
+    etmp = pd.DataFrame({"e": exp.values, "b": ekeys})
+    exp_med = etmp.groupby("b")["e"].median()
+
+    buckets = {}
+    for b, (rmed, rmad) in bucket_stats.items():
+        if b not in exp_med.index:
+            continue
+        dow, hour = b
+        buckets[f"{int(dow)}_{int(hour)}"] = {
+            "expected": round(float(exp_med[b]), 2),
+            "resid_median": round(float(rmed), 3),
+            "resid_mad": round(float(rmad), 3),
+        }
+    if not buckets:
+        return None
+
+    slope_per_day = None
+    trend_last = None
+    tclean = trend.dropna()
+    if not tclean.empty:
+        X = np.arange(len(tclean)).reshape(-1, 1)
+        reg = LinearRegression().fit(X, tclean.values)
+        slope_per_day = round(float(reg.coef_[0]) * 144, 4)  # 144 samples/day
+        trend_last = round(float(tclean.iloc[-1]), 2)
+
+    return {
+        "method": "mstl_dow_hour",
+        "key_format": "dayofweek_hour (Mon=0..Sun=6, hour 0..23, UTC)",
+        "z_threshold": MAD_Z_THRESHOLD,
+        "z_score_formula": "0.6745 * ((actual - expected) - resid_median) / resid_mad",
+        "baseline_end_utc": str(r.index[-1]),
+        "trend_slope_per_day": slope_per_day,
+        "trend_last": trend_last,
+        "global_resid_mad": round(_mad(r.values), 3),
+        "buckets": buckets,
+    }
+
+
 def _compute_bucket_stats(resid):
     """Per-(day-of-week, hour) median + floored MAD of the residual.
 
@@ -272,7 +344,7 @@ def analyze(df, include_trend=False):
         }
     Timestamps are emitted as-is (no timezone conversion).
     """
-    empty = {"anomalies": [], "utilization breaches": [], "trend": None}
+    empty = {"anomalies": [], "utilization breaches": [], "trend": None, "baseline": None}
 
     # Data already arrives as 10-min values from ADX; use it as-is with NO
     # resampling/binning. Just sort and drop any missing utilization.
@@ -356,11 +428,16 @@ def analyze(df, include_trend=False):
     # Utilization distribution — count of samples per 10-point band.
     util_range = _utilization_range(df_r['Utilization'])
 
+    # Frozen per-(dow, hour) baseline so a realtime extractor can score a single
+    # new sample without re-running MSTL.
+    baseline = _build_baseline(expected, resid, bucket_stats, res.trend)
+
     return {
         "anomalies": anomalies,
         "utilization breaches": breaches,
         "trend": trend,
         "UtilizationRange": util_range,
+        "baseline": baseline,
     }
 
 

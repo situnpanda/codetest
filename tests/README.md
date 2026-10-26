@@ -12,7 +12,7 @@ tests/
 │   │                                    imported names exist, 3rd-party pkgs installed + pinned
 │   ├── test_smoke.py                  → app boots, all blueprints + frontend-facing routes registered
 │   ├── unit/                          → fast, isolated (no Azure calls)
-│   │   ├── test_environment.py        → DEPLOYMENT_ENV aliases/defaults (shared/environment.py)
+│   │   ├── test_environment.py        → exact DEPLOYMENT_ENV names/defaults (shared/environment.py)
 │   │   ├── test_adx_routing.py        → ADX cluster per environment
 │   │   ├── test_appinsights_environment.py → log records tagged with DEPLOYMENT_ENV
 │   │   └── test_user_metrics_env_filter.py → perf metrics filtered to current env + endpoint

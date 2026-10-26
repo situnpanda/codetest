@@ -8,8 +8,8 @@ pytestmark = pytest.mark.unit
 
 @pytest.mark.parametrize("env, expected", [
     ("production", "production"),
-    ("stag", "staging"),
-    ("dev", "development"),
+    ("staging", "staging"),
+    ("development", "development"),
 ])
 def test_dimensions_carry_deployment_env(reload_with_env, env, expected):
     logger = reload_with_env(env, "shared.appinsightsLogger")
