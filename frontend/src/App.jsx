@@ -1,6 +1,6 @@
 import './App.css';
 import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
-import { useLocation, Routes, Route } from 'react-router-dom';
+import { useLocation, Routes, Route, Navigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Unstable_Grid2';
 import Header from './Components/features/Header/Header';
@@ -244,7 +244,7 @@ function App({msalInstance, appInsights}) {
           <Box component="main" sx={{ flexGrow: 1, backgroundColor: '#f5f5f5', height: '100vh', mt: 4, overflow: 'auto' }}>
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '60vh' }}><CircularProgress /></Box>}>
             <Routes>
-              <Route path="/" element={<AppPodsWallboard userProfileData={userProfile} appInsights={appInsights} supportGroup={userSupportGroups} backendSessionToken={accessTokenBackend} hospitalInformation={hospitalInformation} />}/>
+              <Route path="/" element={<Navigate to="/CRCA%20application%20wallboard" replace />} />
               <Route path="/homePage" element={<NavigateToAppHealth/>}/>
               <Route path="/logs" element={<Logs />} />
               <Route path="/smartscape topology" element={<AppsAnalysis date={date} appInsights={appInsights} />} />

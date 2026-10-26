@@ -11,7 +11,8 @@ import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
-    Tooltip as RTooltip, ResponsiveContainer, Cell
+    Tooltip as RTooltip, ResponsiveContainer, Cell,
+    ComposedChart, Line, Scatter, Legend
 } from 'recharts';
 import dayjs from 'dayjs';
 import { fetchPatternAnalysis_fromADX } from '../../shared/APIs/fetchAPIs';
@@ -61,7 +62,19 @@ const titleForMetric = (metric) => {
     return map[metric] || 'Utilization Patterns';
 };
 
+const STACK = { morning: '#B3C7F5', business: '#7FA1E8', evening: '#4B79D6' };
+
 // ── Small presentational helpers ─────────────────────────────────────────────
+function StatCard({ label, value, accent = NAVY, hint }) {
+    const card = (
+        <Box sx={{ flex: 1, minWidth: 0, border: `1px solid ${BORDER}`, borderRadius: 2, px: 1.25, py: 1, bgcolor: '#FFFFFF', cursor: hint ? 'help' : 'default' }}>
+            <Typography sx={{ fontSize: 20, fontWeight: 800, color: accent, lineHeight: 1.1 }}>{value}</Typography>
+            <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: TEXT, mt: 0.25 }}>{label}</Typography>
+        </Box>
+    );
+    return hint ? <Tooltip title={hint} arrow placement="top">{card}</Tooltip> : card;
+}
+
 function SectionTitle({ children, hint }) {
     return (
         <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 2.5, mb: 1 }}>
@@ -262,8 +275,11 @@ function buildWeeklySummary(anomalies, runMoment) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-const PatternInsightsPane = ({ open, onClose, domain = 'utilization', metric, servers = [] }) => {
+const PatternInsightsPane = ({ open, onClose, domain = 'utilization', metric, servers = [], fetchUtilization = null }) => {
     const [loading, setLoading] = useState(false);
+    // Pane-owned 30-day raw utilization series cache, keyed by metric.
+    const [paneUtil, setPaneUtil] = useState({});
+    const [paneUtilLoading, setPaneUtilLoading] = useState(false);
     const [error, setError] = useState('');
     const [records, setRecords] = useState([]);
     const [selectedIdx, setSelectedIdx] = useState(0);
@@ -411,6 +427,103 @@ const PatternInsightsPane = ({ open, onClose, domain = 'utilization', metric, se
     }, [rangeData]);
 
     const resourceType = metric === 'CPU' ? 'vCPU' : metric === 'Memory' ? 'RAM' : 'disk';
+
+    // Stacked-bar data for threshold breaches (only weekdays with breaches).
+    const breachBarData = useMemo(
+        () => breachWeeklySummary
+            .filter((r) => r.morning + r.business + r.evening > 0)
+            .map((r) => ({ day: r.day.slice(0, 3), morning: r.morning, business: r.business, evening: r.evening })),
+        [breachWeeklySummary]
+    );
+
+    // ── Raw 30-day utilization series (fetched independently of the parent) ──
+    useEffect(() => { setPaneUtil({}); }, [serversKey]);
+
+    useEffect(() => {
+        if (!open || domain !== 'utilization' || !metric || typeof fetchUtilization !== 'function') return;
+        if (paneUtil[metric] !== undefined) return;
+        let cancelled = false;
+        setPaneUtilLoading(true);
+        (async () => {
+            try {
+                const res = await fetchUtilization(metric);
+                if (!cancelled) setPaneUtil((prev) => ({ ...prev, [metric]: res || {} }));
+            } catch (e) {
+                if (!cancelled) setPaneUtil((prev) => ({ ...prev, [metric]: {} }));
+            } finally {
+                if (!cancelled) setPaneUtilLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, domain, metric, fetchUtilization, serversKey]);
+
+    const utilSeries = useMemo(() => {
+        if (domain !== 'utilization' || !selected) return [];
+        const raw = paneUtil[metric];
+        if (!raw || !raw.TimeGenerated || !raw.ServerName || !raw.AvgValue) return [];
+        const serverLc = String(selected.ResourceId || '').toLowerCase();
+        if (!serverLc) return [];
+        let drive = null;
+        if (metric === 'Disk' && selected.CounterName) {
+            const m = /Disk\s+(.+)$/.exec(selected.CounterName);
+            drive = m ? m[1].trim() : null;
+        }
+        const points = [];
+        Object.keys(raw.TimeGenerated).forEach((i) => {
+            if (String(raw.ServerName[i] || '').toLowerCase() !== serverLc) return;
+            if (drive && raw.DriveName && String(raw.DriveName[i] || '').trim() !== drive) return;
+            const ts = parseTs(raw.TimeGenerated[i]);
+            const val = raw.AvgValue[i];
+            if (!ts || val == null || Number.isNaN(Number(val))) return;
+            points.push({ t: ts.valueOf(), value: Number(val) });
+        });
+        points.sort((a, b) => a.t - b.t);
+        return points;
+    }, [domain, metric, paneUtil, selected]);
+
+    // ── Actual vs expected, reconstructed from the extractor's frozen baseline.
+    // baseline.buckets is keyed "<dow>_<hour>" (Mon=0..Sun=6) and carries the
+    // expected level (trend + seasonal) plus resid_median / resid_mad, so:
+    //   residual = actual - expected - resid_median
+    //   z_mod    = 0.6745 * residual / resid_mad
+    const baseline = data && data.baseline;
+    const decomposition = useMemo(() => {
+        if (!baseline || !baseline.buckets || utilSeries.length === 0) return [];
+        const zT = Number(baseline.z_threshold) || 3.5;
+        const gMad = Number(baseline.global_resid_mad) || null;
+        return utilSeries.map((p) => {
+            const d = dayjs(p.t);
+            const b = baseline.buckets[`${(d.day() + 6) % 7}_${d.hour()}`];
+            if (!b) return { t: p.t, actual: p.value, expected: null, residual: null, band: null };
+            const mad = Number(b.resid_mad) || gMad;
+            const expected = Number(b.expected);
+            const residual = p.value - expected - (Number(b.resid_median) || 0);
+            const band = mad ? (zT * mad) / 0.6745 : null;
+            return { t: p.t, actual: p.value, expected, residual, band, negBand: band != null ? -band : null };
+        });
+    }, [baseline, utilSeries]);
+
+    // Anomaly dots for the time-series chart, grouped by severity and filtered
+    // with the same severity chip selection as the timeline.
+    const anomalyDots = useMemo(() => {
+        const buckets = { high: [], medium: [], low: [] };
+        if (utilSeries.length === 0) return buckets;
+        const tMin = utilSeries[0].t;
+        const tMax = utilSeries[utilSeries.length - 1].t;
+        visibleAnomalies.forEach((a) => {
+            const d = parseTs(a.timestamp);
+            if (!d || a.actual == null) return;
+            const t = d.valueOf();
+            if (t < tMin || t > tMax) return;
+            const sev = SEVERITY[a.severity] ? a.severity : 'low';
+            buckets[sev].push({ t, value: Number(a.actual) });
+        });
+        return buckets;
+    }, [visibleAnomalies, utilSeries]);
+
+    const tickDate = (v) => dayjs(v).format('MMM D');
+    const tipDate = (v) => dayjs(v).format('ddd, MMM D, YYYY HH:mm');
 
     return (
         <Drawer
@@ -610,6 +723,155 @@ const PatternInsightsPane = ({ open, onClose, domain = 'utilization', metric, se
                             >
                                 All {metric || 'utilization'} samples stayed below 50% over the last {ANALYSIS_WINDOW_DAYS} days{maxBand ? ` (peak reached the ${maxBand.band}% band)` : ''} — this resource looks over-provisioned. Consider downsizing the {resourceType} configuration.
                             </Alert>
+                        )}
+
+                        {/* 3. Threshold breaches by day & time of day */}
+                        <SectionTitle hint="Number of 10-minute samples at or above 90% utilization per weekday, stacked by time of day.">
+                            Threshold breaches by day &amp; time of day
+                        </SectionTitle>
+                        {breachBarData.length > 0 ? (
+                            <Box sx={{ height: 210, width: '100%' }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={breachBarData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF0F4" />
+                                        <XAxis dataKey="day" tick={{ fontSize: 10, fill: MUTED }} axisLine={{ stroke: BORDER }} tickLine={false} />
+                                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: MUTED }} axisLine={false} tickLine={false} />
+                                        <RTooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${BORDER}` }} />
+                                        <Legend wrapperStyle={{ fontSize: 10 }} iconSize={9} />
+                                        <Bar dataKey="morning" stackId="a" name="Morning" fill={STACK.morning} />
+                                        <Bar dataKey="business" stackId="a" name="Business hrs" fill={STACK.business} />
+                                        <Bar dataKey="evening" stackId="a" name="Evening" fill={STACK.evening} radius={[3, 3, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </Box>
+                        ) : (
+                            <EmptyState title="No threshold breaches detected" subtitle="This resource stayed below 90% utilization during the last 30 days." />
+                        )}
+
+                        {/* 4. Weekly anomaly summary */}
+                        <SectionTitle hint="For each weekday, how many MSTL anomalies (deviations from this resource's own learned pattern) occurred, split by time of day.">
+                            Weekly anomaly summary
+                        </SectionTitle>
+                        {hasWeeklyData ? (
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1 }}>
+                                {weeklySummary.map((r) => (
+                                    <WeeklyDayCard key={r.day} day={r.day} morning={r.morning} business={r.business} evening={r.evening} daysSeen={r.daysSeen} daysTotal={r.daysTotal} isPeak={r.isPeak} />
+                                ))}
+                            </Box>
+                        ) : (
+                            <EmptyState title="No anomalies detected" subtitle="This resource stayed within its learned pattern on every weekday." />
+                        )}
+
+                        {/* 5. Detected anomaly stat cards */}
+                        <SectionTitle hint="Counts of anomalies by severity and absolute 90%+ threshold breaches in the window.">Detected anomalies</SectionTitle>
+                        <Stack direction="row" spacing={1}>
+                            <StatCard label="Anomalies" value={anomalies.length} hint="Total points that broke this resource's learned daily/weekly pattern." />
+                            <StatCard label="High severity" value={counts.high} accent={counts.high ? SEVERITY.high.color : NAVY} hint="Modified z-score ≥ 5 — far outside the expected range." />
+                            <StatCard label="Medium severity" value={counts.medium} accent={counts.medium ? SEVERITY.medium.color : NAVY} hint="Modified z-score between 4 and 5." />
+                            <StatCard label="Threshold breaches" value={breaches.length} accent={breaches.length ? SEVERITY.high.color : NAVY} hint="10-minute samples at or above 90% utilization." />
+                        </Stack>
+
+                        {/* 6. Utilization over time: actual vs expected + anomaly dots */}
+                        <SectionTitle hint="Last 30 days of utilization. The dashed line is the expected level from the learned baseline; dots mark anomalies (filtered by the severity chips below).">
+                            Utilization over time · actual vs expected
+                        </SectionTitle>
+                        {paneUtilLoading && utilSeries.length === 0 ? (
+                            <Box sx={{ height: 220, border: `1px solid ${BORDER}`, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                                <CircularProgress size={18} sx={{ color: NAVY }} />
+                                <Typography sx={{ fontSize: 11, color: MUTED }}>Loading 30-day utilization…</Typography>
+                            </Box>
+                        ) : utilSeries.length === 0 ? (
+                            <EmptyState title="No utilization samples" subtitle="No raw utilization is available for this resource in the last 30 days." />
+                        ) : (
+                            <Box sx={{ height: 230, width: '100%', border: `1px solid ${BORDER}`, borderRadius: 2, p: 1 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF0F4" />
+                                        <XAxis type="number" dataKey="t" domain={['dataMin', 'dataMax']} tickFormatter={tickDate} tick={{ fontSize: 10, fill: MUTED }} axisLine={{ stroke: BORDER }} tickLine={false} allowDuplicatedCategory={false} />
+                                        <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: MUTED }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} width={36} />
+                                        <RTooltip cursor={{ stroke: BORDER }} labelFormatter={tipDate} formatter={(v, n) => [`${Number(v).toFixed(1)}%`, n]} contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${BORDER}` }} />
+                                        <Line data={decomposition.length ? decomposition : utilSeries} dataKey={decomposition.length ? 'actual' : 'value'} name="Actual" type="monotone" stroke={NAVY} strokeWidth={1.4} dot={false} isAnimationActive={false} />
+                                        {decomposition.length > 0 && (
+                                            <Line data={decomposition} dataKey="expected" name="Expected" type="monotone" stroke="#7C3AED" strokeWidth={1.2} strokeDasharray="4 3" dot={false} connectNulls isAnimationActive={false} />
+                                        )}
+                                        {['high', 'medium', 'low'].map((sev) => anomalyDots[sev].length > 0 && (
+                                            <Scatter key={sev} data={anomalyDots[sev]} dataKey="value" name={`${SEVERITY[sev].label} anomaly`} fill={SEVERITY[sev].color} stroke="#FFFFFF" strokeWidth={1} isAnimationActive={false} />
+                                        ))}
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </Box>
+                        )}
+
+                        {/* 7. Residual vs tolerance band
+                        {decomposition.length > 0 && (
+                            <>
+                                <SectionTitle hint="Residual = actual − expected (minus the bucket median). The shaded limits are the per-(weekday, hour) tolerance (z-threshold × MAD); points beyond them are anomaly candidates.">
+                                    Residual vs tolerance band
+                                </SectionTitle>
+                                <Box sx={{ height: 150, width: '100%', border: `1px solid ${BORDER}`, borderRadius: 2, p: 1 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={decomposition} margin={{ top: 4, right: 12, left: -10, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF0F4" />
+                                            <XAxis type="number" dataKey="t" domain={['dataMin', 'dataMax']} tickFormatter={tickDate} tick={{ fontSize: 9.5, fill: MUTED }} axisLine={{ stroke: BORDER }} tickLine={false} />
+                                            <YAxis tick={{ fontSize: 9.5, fill: MUTED }} axisLine={false} tickLine={false} width={36} tickFormatter={(v) => `${Math.round(v)}`} />
+                                            <RTooltip cursor={{ stroke: BORDER }} labelFormatter={tipDate} formatter={(v, n) => [Number(v).toFixed(2), n]} contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${BORDER}` }} />
+                                            <Line dataKey="band" name="Upper limit" stroke="#F59E0B" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls isAnimationActive={false} />
+                                            <Line dataKey="negBand" name="Lower limit" stroke="#F59E0B" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls isAnimationActive={false} />
+                                            <Line dataKey="residual" name="Residual" stroke="#DC2626" strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                </Box>
+                            </>
+                        )} */}
+
+                        {/* 8. Anomaly timeline */}
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mt: 2.5, mb: 1, flexWrap: 'wrap', rowGap: 0.75 }}>
+                            <Stack direction="row" alignItems="center" spacing={0.5}>
+                                <Typography sx={{ fontSize: 12, fontWeight: 800, color: TEXT }}>Anomaly timeline</Typography>
+                                <Tooltip title={`All anomalies detected in the ${ANALYSIS_WINDOW_DAYS}-day window, most recent first.`} arrow placement="top">
+                                    <InfoOutlinedIcon sx={{ fontSize: 13, color: MUTED, cursor: 'help' }} />
+                                </Tooltip>
+                            </Stack>
+                            <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                                {[
+                                    { key: 'all', label: 'All', count: sortedAnomalies.length, color: NAVY },
+                                    { key: 'high', label: 'High', count: counts.high, color: SEVERITY.high.color },
+                                    { key: 'medium', label: 'Medium', count: counts.medium, color: SEVERITY.medium.color },
+                                    { key: 'low', label: 'Low', count: counts.low, color: SEVERITY.low.color },
+                                ].map(({ key, label, count, color }) => {
+                                    const active = severityFilter === key;
+                                    return (
+                                        <Chip
+                                            key={key}
+                                            size="small"
+                                            clickable
+                                            label={`${label} ${count}`}
+                                            onClick={() => setSeverityFilter(key)}
+                                            sx={{
+                                                height: 20, fontSize: 10, fontWeight: 700,
+                                                color: active ? '#FFFFFF' : color,
+                                                bgcolor: active ? color : `${color}14`,
+                                                border: `1px solid ${active ? color : 'transparent'}`,
+                                                '& .MuiChip-label': { px: 0.75 },
+                                                '&:hover': { bgcolor: active ? color : `${color}26` },
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </Stack>
+                        </Stack>
+                        {sortedAnomalies.length === 0 ? (
+                            <EmptyState title="No anomalies detected" subtitle="This resource behaved within its expected pattern." />
+                        ) : visibleAnomalies.length === 0 ? (
+                            <Box sx={{ border: `1px dashed ${BORDER}`, borderRadius: 2, py: 3, textAlign: 'center' }}>
+                                <Typography sx={{ fontSize: 11.5, color: MUTED }}>No {severityFilter}-severity anomalies in this window.</Typography>
+                            </Box>
+                        ) : (
+                            <Box>
+                                {visibleAnomalies.map((a, i) => (
+                                    <AnomalyRow key={`${a.timestamp || 'na'}-${i}`} a={a} />
+                                ))}
+                            </Box>
                         )}
                     </>
                 )}

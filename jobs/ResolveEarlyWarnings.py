@@ -7,9 +7,12 @@ sys.path.append(str(root))
 
 from shared.dataBase import queryDw, exceptioninfo, insert_data, connectToDw_AADpwd, connectToDw_AADpwd_Write, updateDw
 
+EW_TABLE = "[Early Warnings]"
+PI_TABLE = "[Potential Issues]"
+
 def resolvePotentialIssues():
     try:
-        sqlQuery = f""" Update [Potential Issues] set [State] = 'Resolved' where [Last Updated] <= DATEADD(minute,-300,GETUTCDATE()) and [State] = 'New'"""
+        sqlQuery = f""" Update {PI_TABLE} set [State] = 'Resolved' where [Last Updated] <= DATEADD(minute,-300,GETUTCDATE()) and [State] = 'New'"""
         print(sqlQuery)
         connectionString = connectToDw_AADpwd_Write("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         res = updateDw(connectionString, sqlQuery,[])
@@ -20,7 +23,7 @@ def resolvePotentialIssues():
 
 def resolveEarlyWarnings():
     try:
-        sqlQuery = f""" Update [Early Warnings] set [State] = 'Resolved' where (Select count(*) from [Potential Issues] where [Potential Issues].[Early Warning ID] = [Early Warnings].[Early Warning ID] and ([Potential Issues].[State] <> 'True Positive' and [Potential Issues].[State] <> 'False Positive' and [Potential Issues].[State] <> 'Resolved' and [Potential Issues].[State] <> 'Remove From Monitoring')) = 0 and [State] = 'New'"""
+        sqlQuery = f""" Update ew set [State] = 'Resolved' from {EW_TABLE} ew where (Select count(*) from {PI_TABLE} pi where pi.[Early Warning ID] = ew.[Early Warning ID] and (pi.[State] <> 'True Positive' and pi.[State] <> 'False Positive' and pi.[State] <> 'Resolved' and pi.[State] <> 'Remove From Monitoring')) = 0 and ew.[State] = 'New'"""
         print(sqlQuery)
         connectionString = connectToDw_AADpwd_Write("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
         res = updateDw(connectionString, sqlQuery,[])

@@ -22,6 +22,15 @@ import pandas as pd
 import numpy as np
 import base64
 import json
+from shared.environment import ENVIRONMENT
+
+# Each environment reads/writes its own early-warning tables so stag/dev never touch production data.
+EARLY_WARNING_TABLES = {
+    "production":  ("[Early Warnings]",      "[Potential Issues]"),
+    "staging":     ("[Early Warnings Stag]", "[Potential Issues Stag]"),
+    "development": ("[Early Warnings Dev]",  "[Potential Issues Dev]"),
+}
+EW_TABLE, PI_TABLE = EARLY_WARNING_TABLES[ENVIRONMENT]
 
 chatOps = Blueprint("chatInitiator", __name__, url_prefix="/api/chatInitiator")
 connectionString = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
@@ -64,18 +73,18 @@ def getEarlyWarningData():
         if(len(status)):
             sqlQueryCondition.append(f"[State] in ({','.join([f"'{s}'" for s in status])})")
         if(len(applicationFamily)):
-            sqlQueryCondition.append(f"lower([Early Warnings].[Application Family]) in ({','.join([f"'{a.lower()}'" for a in applicationFamily])})")
+            sqlQueryCondition.append(f"lower(ew.[Application Family]) in ({','.join([f"'{a.lower()}'" for a in applicationFamily])})")
         if(len(supportGroup) and "All" not in supportGroup):
             sqlQueryCondition.append(f"lower(al.[Support Group]) in ({','.join([f"'{s.lower()}'" for s in supportGroup])})")
         
-        sqlQueryEW = f""" Select Distinct [Early Warning ID],[Early Warnings].[Time Generated],[State],[Summary],[Early Warnings].[Application Family], [State], [Sequential ID] from [Early Warnings] 
+        sqlQueryEW = f""" Select Distinct [Early Warning ID],ew.[Time Generated],[State],[Summary],ew.[Application Family], [State], [Sequential ID] from {EW_TABLE} ew 
         left join 
         (
             SELECT DISTINCT [Application Family], [Support Group]
             FROM [Application List] where [Last Updated] = (Select Max([Last Updated]) from [Application List])
         ) al
-        on lower([Early Warnings].[Application Family]) = lower(al.[Application Family])
-        {f"where {' and '.join(sqlQueryCondition)}" if len(sqlQueryCondition) else ""} order by [Early Warnings].[Time Generated] desc"""
+        on lower(ew.[Application Family]) = lower(al.[Application Family])
+        {f"where {' and '.join(sqlQueryCondition)}" if len(sqlQueryCondition) else ""} order by ew.[Time Generated] desc"""
         
         print(sqlQueryEW)
         res = queryDw(connectionString, sqlQueryEW)
@@ -129,12 +138,12 @@ def getWarningEvents():
         if(len(supportGroup) and "All" not in supportGroup):
             sqlQueryCondition.append(f"lower(al.[Support Group]) in ({','.join([f"'{s.lower()}'" for s in supportGroup])})")
         
-        sqlQueryPI = f""" Select [Potential Issues].[Time Generated],[Resource Name],[Potential Issues].[Application CI], [Resource Type],[Metrics Impacted],[Condition],[Early Warning ID], [Issue ID], [State], [Comments] from [Potential Issues] 
+        sqlQueryPI = f""" Select pi.[Time Generated],[Resource Name],pi.[Application CI], [Resource Type],[Metrics Impacted],[Condition],[Early Warning ID], [Issue ID], [State], [Comments] from {PI_TABLE} pi 
         left join (
             SELECT DISTINCT [Application Family], [Support Group], [Application CI]
             FROM [Application List]
-        ) al on lower([Potential Issues].[Application CI]) = lower(al.[Application CI])
-        {f"where {' and '.join(sqlQueryCondition)}" if len(sqlQueryCondition) else ""} order by [Potential Issues].[Time Generated] desc"""
+        ) al on lower(pi.[Application CI]) = lower(al.[Application CI])
+        {f"where {' and '.join(sqlQueryCondition)}" if len(sqlQueryCondition) else ""} order by pi.[Time Generated] desc"""
         
         print(sqlQueryPI)
         res = queryDw(connectionString, sqlQueryPI)
@@ -173,7 +182,7 @@ def updateEarlyWarningsData(data={}):
             arr.append((newState[ind], i))
             
         print(arr)
-        sqlQueryUpdate = f""" Update [Early Warnings] set [State] = ?, [Last Updated] = GETUTCDATE() where lower([Early Warning ID]) = ?"""
+        sqlQueryUpdate = f""" Update {EW_TABLE} set [State] = ?, [Last Updated] = GETUTCDATE() where lower([Early Warning ID]) = ?"""
         res = insertDw(connectionString_write, sqlQueryUpdate, arr)
         print(res)
         return {"status": 200, "Data": "State updated successfully", "meta": {}, "error": None}
@@ -215,7 +224,7 @@ def updateWarningEventsData(data={}):
             for ind, i in enumerate(earlyWarningID):
                 arr.append((newState[ind], comments[ind] if ind < len(comments) else None, i.lower()))
         
-        sqlQueryUpdate = f""" Update [Potential Issues] set [State] = ?, [Comments] = ?, [Last Updated] = GETUTCDATE() where {" OR ".join(sqlQueryCondition)} """
+        sqlQueryUpdate = f""" Update {PI_TABLE} set [State] = ?, [Comments] = ?, [Last Updated] = GETUTCDATE() where {" OR ".join(sqlQueryCondition)} """
         res = insertDw(connectionString_write, sqlQueryUpdate, arr)
         print("203", res)
         return {"status": 200, "Data": "State updated successfully", "meta": {}, "error": None}

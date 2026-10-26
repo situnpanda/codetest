@@ -14,22 +14,16 @@ import os
 PRODUCTION = "production"
 STAGING = "staging"
 DEVELOPMENT = "development"
-
-_ALIASES = {
-    "prod": PRODUCTION, "production": PRODUCTION,
-    "stag": STAGING, "stage": STAGING, "staging": STAGING, "test": STAGING,
-    "dev": DEVELOPMENT, "development": DEVELOPMENT, "local": DEVELOPMENT,
-}
+VALID_ENVIRONMENTS = {PRODUCTION, STAGING, DEVELOPMENT}
 
 
 def resolve_environment():
-    raw = (os.getenv("DEPLOYMENT_ENV") or "").strip().lower()
-    if not raw:
+    env = (os.getenv("DEPLOYMENT_ENV") or "").strip().lower()
+    if not env:
         print(f"[Environment] DEPLOYMENT_ENV not set -> defaulting to '{DEVELOPMENT}'")
         return DEVELOPMENT
-    env = _ALIASES.get(raw)
-    if env is None:
-        print(f"[Environment] Unknown DEPLOYMENT_ENV='{raw}' -> defaulting to '{DEVELOPMENT}'")
+    if env not in VALID_ENVIRONMENTS:
+        print(f"[Environment] Unknown DEPLOYMENT_ENV='{env}' -> defaulting to '{DEVELOPMENT}'")
         return DEVELOPMENT
     return env
 

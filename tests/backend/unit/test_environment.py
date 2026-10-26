@@ -10,22 +10,18 @@ pytestmark = pytest.mark.unit
 
 @pytest.mark.parametrize("raw, expected", [
     ("production", "production"),
-    ("prod", "production"),
-    ("  PROD ", "production"),
+    ("  PRODUCTION ", "production"),
     ("staging", "staging"),
-    ("stag", "staging"),
-    ("stage", "staging"),
-    ("test", "staging"),
+    ("  STAGING ", "staging"),
     ("development", "development"),
-    ("dev", "development"),
-    ("local", "development"),
+    ("  DEVELOPMENT ", "development"),
 ])
-def test_deployment_env_aliases(monkeypatch, raw, expected):
+def test_deployment_env_exact_names(monkeypatch, raw, expected):
     monkeypatch.setenv("DEPLOYMENT_ENV", raw)
     assert environment.resolve_environment() == expected
 
 
-@pytest.mark.parametrize("raw", ["", "bogus", "qa1"])
+@pytest.mark.parametrize("raw", ["", "bogus", "qa1", "prod", "stag", "dev", "stage", "test", "local"])
 def test_unknown_value_defaults_to_development(monkeypatch, raw):
     monkeypatch.setenv("DEPLOYMENT_ENV", raw)
     assert environment.resolve_environment() == environment.DEVELOPMENT
@@ -45,5 +41,5 @@ def test_other_env_vars_and_hostname_are_ignored(monkeypatch):
 
 
 def test_module_constant_follows_deployment_env(reload_with_env):
-    module = reload_with_env("prod")
+    module = reload_with_env("production")
     assert module.ENVIRONMENT == "production"

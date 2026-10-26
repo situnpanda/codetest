@@ -794,42 +794,10 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
             console.log("Early Warning Data:", data)
             var temp = {}
             if(Object.keys(data).length>0 && "Status" in data && data["Status"][0]==="New"){
-              Object.keys(data["Application Family"]).map((key)=>{
-                temp["popUpHeader"] = "Early Warning Detected"
-                
-                // Build HTML popUpBody
-                const summary = data["Summary"][key]["Summary"] || "";
-                const details = data["Summary"][key]["Details"] || {};
-                const uniqueDetails = [...new Set(Object.keys(details))];
-                const detailsHtml = uniqueDetails.length > 0 
-                  ? `<ul style="margin: 8px 0; padding-left: 24px;">${uniqueDetails.map(d => `<li style="margin: 4px 0; font-size: 0.9em; color: #26374D;">${d}</li>`).join('')}</ul>`
-                  : "";
-                
-                temp["popUpBody"] = `
-                  <p style="margin: 0 0 12px 0; font-size: 0.96em; line-height: 1.6; color: #26374D;">
-                    ${summary} The components with potential issues are:
-                  </p>
-                  ${detailsHtml}
-                  <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(26, 115, 232, 0.2); font-size: 0.9em; color: #26374D;">
-                    <strong style="color: #1A73E8;">NOTE:</strong> The Yellow/Red Chips will show where the warning is found. Please Acknowledge to track troubleshooting efforts.
-                  </div>
-                `;
-                temp["buttons"] = [{
-                  "label":"Acknowledge",
-                  "function": () => 
-                    {
-                      callUpdateEarlyWarning("Acknowledged", earlyWarningId, []); 
-                      setEarlyWarningPopUpData((prev)=>({
-                        ...prev,
-                        "isOpen": false
-                      }));
-                    },
-                  "enabled": true
-                }]
-                temp["isLoading"] = false
-                temp["isOpen"] = true
-                temp["actionResponse"] = {}
-              })
+              // Acknowledge immediately; the success/error alert is shown by callUpdateEarlyWarning
+              setEarlyWarningPopUpData({ "actionResponse": { "status": 200, "message": "Acknowledging Early Warning..." } })
+              callUpdateEarlyWarning("Acknowledged", earlyWarningId)
+              return
             }
             else{
               if(Object.keys(data).length>0 && "Status" in data && data["Status"][0].toLowerCase()==="acknowledged"){
@@ -848,6 +816,14 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
           })
         }
         else if(earlyWarningId!==null && earlyWarningUpdateState!==null && earlyWarningUpdateState.toLowerCase() === "resolve"){
+          setEarlyWarningPopUpData({
+            "popUpHeader": "Resolve Early Warning",
+            "popUpBody": "Loading warning events, please wait...",
+            "buttons": [],
+            "isLoading": true,
+            "isOpen": true,
+            "actionResponse": {}
+          })
           fetchWarningEvents(backendSessionToken, { "EarlyWarningID": [earlyWarningId], "status": ["Acknowledged", "Resolved"] })
           .then((data)=>{
             var temp = {}
@@ -936,6 +912,7 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
           })
           .catch((error)=>{
             console.error("Error fetching warning events data:", error)
+            setEarlyWarningPopUpData({ "actionResponse": { "status": 500, "message": "Failed to load warning events" } })
           })
         }
       }
@@ -996,6 +973,7 @@ function ApplicationDownDetailsNew({globalFilterChoice, setGlobalFilterChoice, s
         .finally(()=>{
           var actionItem = localStorage.getItem("earlyWarningActionItem") || 0
           localStorage.setItem("earlyWarningActionItem", parseInt(actionItem) + 1);
+          callFunctionsForPotentialIssues()
 
           setEarlyWarningPopUpData((prev)=>({
             ...prev,

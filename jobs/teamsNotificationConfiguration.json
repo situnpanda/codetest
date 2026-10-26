@@ -1,37 +1,63 @@
 {
-    "CRCA Patient Monitoring" :{
+    "CRCA - Patient Monitoring" :{
         "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
         "Teams Channel ID": "19%3AKonR1poDNL-NSfggAEXrq1LR7igUCwDI8YMCzKPncX81%40thread.tacv2",
         "DL" : [],
-        "Email ID" :[],
-        "Application Family": ["DeviceConX"]
+        "Email ID" :["vikas.sharma1@providence.org","gopikrishna.manoharan1@providence.org", "gudala.ramalakshmisahithya2@providence.org"],
+        "Application Family": ["deviceconx"]
     },
-    "CRCA Imaging Applications" :{
+    "CRCA - Imaging Applications" :{
         "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
         "Teams Channel ID": "19%3AMrii7UD8pBF3mAzlDx5F1qBBd4OvET2_Ak1tVLa4Aw41%40thread.tacv2",
         "DL" : [],
-        "Email ID" : [],
-        "Application Family": ["Acuo VNA", "Fuji Synapse PACS", "Change Healthcare Cardiology"]
+        "Email ID" : ["vikas.sharma1@providence.org","gopikrishna.manoharan1@providence.org", "gudala.ramalakshmisahithya2@providence.org", "a.s.athish@providence.org", "sankarhariharan.g@providence.org", "giteshtribhuvan.bhanushali@providence.org", "besta.chaithanya@providence.org", "niharika.gudure@providence.org", "edunuri.jasminevijaya@providence.org", "deeksha.k@providence.org", "karthik.krishnamoorthi1@providence.org", "sushanth.pottipalli@providence.org", "leela.n@providence.org", "sarika.shaikh@providence.org", "suru.sowmya@providence.org", "kongarapi.venumadhavi@providence.org"],
+        "Application Family": ["fuji synapse pacs", "change healthcare cardiology"]
     },
-    "IS Applications Woman and Children,Case Management":{
+    "IS Applications - Women and Children, Case Management":{
         "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
         "Teams Channel ID": "19%3AOWiazRARPDvtYZk9GVvXIzfLIkhhYraOHCnFHwo9rDg1%40thread.tacv2",
         "DL" : ["CRCAIndia_Lab_WC_Pharmacy@providence.org"],
-        "Email ID" :[],
-        "Application Family": ["Obix"]
+        "Email ID" :["Ayush.Upadhyay@providence.org", "samanvita.kappara@providence.org"],
+        "Application Family": ["obix"]
     },
     "IS Laboratory Apps" :{
         "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
         "Teams Channel ID": "19%3AJp9p5BgtFSDcYlzXgDy5Bg1NJObA5M4wJ2l8EzDEAiM1%40thread.tacv2",
         "DL" : ["CRCAIndia_Lab_WC_Pharmacy@providence.org"],
-        "Email ID" :[],
-        "Application Family": ["Wellsky Tranfusion", "Immulink", "Cobas IT"]
+        "Email ID" :["Vavilapalli.Pavitra@providence.org", "Ashmitha.Yeddula@providence.org", "Amrit.Ranjan@providence.org", "narender.chand@providence.org", "ala.nallapu@providence.org", "sanjushree.pb@providence.org","paul.yeung@providence.org","james.dang@providence.org", "maryellen.wetkowski@providence.org", "bruce.craig@providence.org"],
+        "Application Family": ["wellsky transfusion", "immulink", "cobas it", "maestria", "haemonetics bloodtrack"]
     },
-    "IS Oncology Application":{
+    "IS Oncology Applications":{
         "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
         "Teams Channel ID": "19%3A57H7MYaPJn2-5ooXoyvh211NVoDzxelwn5bRxw9kLrA1%40thread.tacv2",
         "DL" : ["CRCA-INDIA-ISOncology@providence.org"],
-        "Email ID" :[],
-        "Application Family": ["Mosaiq"]
+        "Email ID" :["shiva.k@providence.org", "srija.dontha@providence.org", "sharanya.s@providence.org", "ab.harishma@providence.org"],
+        "Application Family": ["mosaiq", "aria"]
+    },
+    "IS Revenue Cycle Apps":{
+        "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
+        "Teams Channel ID": "19%3AsNjRPdKGBnD6WwIoow5aBFPt0ht8gcPPKFtcO_e5N3A1%40thread.tacv2",
+        "DL" : [""],
+        "Email ID" :["sushma.anney@providence.org", "khaddimhussain.mir@providence.org", "revanthyadav.aedla@providence.org", "keerthivarma.dhanalakoti@providence.org", "madhuri.mukkamalla@providence.org", "roja.vajrala@providence.org"],
+        "Application Family": ["onbase"]
+    },
+    "HIE Technical": {
+        "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
+        "Teams Channel ID": "19%3AJ451YPedrLMs01oYdEZ2FT9-gZLUbwqnY-pMUgdIWmM1%40thread.tacv2",
+        "DL" : [""],
+        "Email ID" :["aritra.pal@providence.org", "purushothaman.thirugnanasambandam@providence.org", "periyasamy.r@providence.org"],
+        "Application Family": ["healthcare information exchange"]
+    },
+    "Non Production Channels": {
+        "staging": {
+            "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
+            "Teams Channel ID": "19%3AbkaKFS551NDp_w8c7IQ4AqWbikG4vpvmPyBC0P6fsdI1%40thread.tacv2",
+            "Email ID": []
+        },
+        "development": {
+            "Teams Group ID": "fc6329d4-9fc4-47f7-aad2-95dd2d5e6839",
+            "Teams Channel ID": "19%3A4j_azINsil1YHMXpt9sgKLN-T5GKgXDISbWM1QCuLsc1%40thread.tacv2",
+            "Email ID": []
+        }
     }
 }

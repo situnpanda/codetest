@@ -5,7 +5,6 @@ mapping, filters, application-health summary, hospital list, and map-view
 endpoints. Business logic lives in ``domains.metadata``, ``domains.metrics.*``
 and ``shared.*``; this module only wires HTTP requests to those functions.
 """
-import os
 import json
 import numpy
 import pandas
@@ -17,7 +16,6 @@ from flask import Blueprint, request, jsonify, current_app
 from shared.dataBase import connectToDw_AADpwd, queryDw
 from shared.filters import filtersData
 from shared.hospitalList import hospitalList, hospitalListCount
-from shared.cachePaths import userToSupportGroupMappingJsonPath
 from domains.metadata.getComponentList import serviceList, serviceList_new, urlList, customRequirementList, dbList, dbList_new, fileShareList_new
 from domains.metadata.getAppSummary import appSummary
 from domains.metadata.updateOnboardedData import updateServicesData, updateUrlData, updateCustomRequirementData
@@ -25,6 +23,24 @@ from domains.metrics.infrastructure.azureGovernance import tagCompliance_Subscri
 from domains.metrics.application.mapViewTelemetry import mapView
 
 metadata_bp = Blueprint("metadata", __name__)
+
+
+def _support_group_values(rows):
+    return [row[0] for row in rows if row and row[0]]
+
+
+def _preference_support_groups(raw_value):
+    if not raw_value:
+        return []
+
+    support_groups = [group.strip() for group in raw_value.split(',') if group.strip()]
+    if "IS Applications - Women and Children" in raw_value:
+        support_groups = [
+            group for group in support_groups
+            if group != "IS Applications - Women and Children" or "Case Management" not in group
+        ]
+        support_groups.append("IS Applications - Women and Children, Case Management")
+    return support_groups
 
 
 # Alert manager historical data on selecting app family
@@ -217,99 +233,83 @@ def getAppOnboardingSummary():
 
 @metadata_bp.route('/api/userToSupportGroupMapping', methods=["POST"])
 def userSupportGroupMapping():
-    print("came into the functino of user group")
+    print("came into the function of user group")
     dataPost = request.get_json()
+    connectToCrcaMonitoring = connectToDw_AADpwd(
+        "sqldb-azure-prod-012.database.windows.net",
+        "crcamonitoring",
+        "servCRCAMonitoring@providence.org"
+    )
 
     supportGroupPreference = dataPost.get('supportGroupCheck')
 
     if(supportGroupPreference):
-        #print("the support group preference is", supportGroupPreference)
-        with open(userToSupportGroupMappingJsonPath, "r") as json_file:
-            mapping_data = json.load(json_file)
-
-        support_groups = list({
-            record.get("SupportGroup")
-            for record in mapping_data
-            if record.get("SupportGroup")
-        })    
-
-        #print("The support groups are", support_groups)
+        support_groups = _support_group_values(queryDw(
+            connectToCrcaMonitoring,
+            """
+            select distinct [SupportGroup]
+            from [UserToSupportGroupMapping]
+            where [SupportGroup] is not null and ltrim(rtrim([SupportGroup])) <> ''
+            order by [SupportGroup]
+            """
+        ))
         return {"status": 200, "Data": support_groups, "meta": {}, "error": None},200  #gives the list of all support groups
 
     mailAdd = dataPost.get('mailAdd')
-    #mailAdd = "sunitha.bist@providence.org"
     print("The mail address in the dataPost is", mailAdd)
     
     mailAdd = mailAdd.lower()
 
-    connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
-    queryRbacAdmin = f"""select HomePageAdmins from RbacAdmins where HomePageAdmins like lower('{mailAdd}')"""
-    emails_list = queryDw(connectToCrcaMonitoring, queryRbacAdmin)
+    queryRbacAdmin = "select HomePageAdmins from RbacAdmins where lower(HomePageAdmins) = ?"
+    emails_list = queryDw(connectToCrcaMonitoring, queryRbacAdmin, (mailAdd,))
 
     if emails_list:
         return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": "ARIA,Wellsky"}, "meta": {}, "error": None},200
     
     #user prefernece query
-    userPreferenceQuery = f"""select userEmail, SupportGroups, alertManager, AppValidation from UserPreferenceTable where userEmail like lower('{mailAdd}')"""
+    userPreferenceQuery = "select userEmail, SupportGroups, alertManager, AppValidation from UserPreferenceTable where lower(userEmail) = ?"
 
     #print("The user preference query is ", userPreferenceQuery)
-    userPreferenceList = queryDw(connectToCrcaMonitoring, userPreferenceQuery)
+    userPreferenceList = queryDw(connectToCrcaMonitoring, userPreferenceQuery, (mailAdd,))
     #print("The user prefernce list is ", userPreferenceList)
-    #connectToCrcaMonitoring = connectToDw_AADpwd("sqldb-azure-prod-012.database.windows.net", "crcamonitoring", "servCRCAMonitoring@providence.org")
-    if os.path.exists(userToSupportGroupMappingJsonPath):
-        # print("The path exists")
-        with open(userToSupportGroupMappingJsonPath, "r") as json_file:
-            mapping_data = json.load(json_file)
-        # Extract only support group names for the given email
-        support_groups = list({
-            record.get("SupportGroup")
-            for record in mapping_data
-            if str(record.get("Email", "")).lower() == mailAdd and record.get("SupportGroup")
-        })  
-        sql_support_groups = []
-        app_validation_value = "NoAccess"  
+    support_groups = _support_group_values(queryDw(
+        connectToCrcaMonitoring,
+        """
+        select distinct [SupportGroup]
+        from [UserToSupportGroupMapping]
+        where lower([Email]) = ? and [SupportGroup] is not null and ltrim(rtrim([SupportGroup])) <> ''
+        """,
+        (mailAdd,)
+    ))
+    all_support_groups = _support_group_values(queryDw(
+        connectToCrcaMonitoring,
+        """
+        select distinct [SupportGroup]
+        from [UserToSupportGroupMapping]
+        where [SupportGroup] is not null and ltrim(rtrim([SupportGroup])) <> ''
+        """
+    ))
 
-        if userPreferenceList and len(userPreferenceList[0]) > 1:
-            sql_support_groups_str = userPreferenceList[0][1]
-            # Get app validation value if it exists (4th column, index 3)
-            if len(userPreferenceList[0]) > 3 and userPreferenceList[0][3]:
-                app_validation_value = userPreferenceList[0][3]
-            
-            #print("The sql support group is", sql_support_groups_str)
-            if sql_support_groups_str == 'All':
-                #print("Came inside the all condition")
-                return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
-            if sql_support_groups_str:
-                sql_support_groups = [grp.strip() for grp in sql_support_groups_str.split(',') if grp]
-                if("IS Applications - Women and Children" in sql_support_groups_str):
-                    sql_support_groups = [grp for grp in sql_support_groups if grp != "IS Applications - Women and Children" or "Case Management" not in grp]
-                    sql_support_groups.append("IS Applications - Women and Children, Case Management")
-                # exception_support_group = "IS Applications - Women and Children, Case Management"
-                # if exception_support_group in sql_support_groups_str:
-                #     sql_support_groups_str = sql_support_groups_str.replace(exception_support_group, "").replace(",,", ",").strip(",")
- 
-        # Combine with existing list from JSON
-        combined_support_groups = list(set(support_groups + sql_support_groups))
-        all_support_groups = list({
-            record.get("SupportGroup")
-            for record in mapping_data
-            if record.get("SupportGroup")
-        })
-        #print("Final combined support groups are:", combined_support_groups)
-        if set(combined_support_groups) == set(all_support_groups):
-            #print("Support groups match exactly.")
-            return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
+    sql_support_groups = []
+    app_validation_value = "NoAccess"
 
-        if combined_support_groups:
-            return {"status": 200, "Data": {"supportGroups": combined_support_groups, "appValidation": app_validation_value}, "meta": {}, "error": None}, 200  
-        
-        return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
-    
-    else:
-        app_validation_value = "NoAccess"
-        if userPreferenceList and len(userPreferenceList[0]) > 3 and userPreferenceList[0][3]:
+    if userPreferenceList and len(userPreferenceList[0]) > 1:
+        sql_support_groups_str = userPreferenceList[0][1]
+        if len(userPreferenceList[0]) > 3 and userPreferenceList[0][3]:
             app_validation_value = userPreferenceList[0][3]
+
+        if sql_support_groups_str == 'All':
+            return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
+        sql_support_groups = _preference_support_groups(sql_support_groups_str)
+
+    combined_support_groups = list(set(support_groups + sql_support_groups))
+    if set(combined_support_groups) == set(all_support_groups):
         return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
+
+    if combined_support_groups:
+        return {"status": 200, "Data": {"supportGroups": combined_support_groups, "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
+
+    return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": app_validation_value}, "meta": {}, "error": None}, 200
     
     return {"status": 200, "Data": {"supportGroups": ["All"], "appValidation": "NoAccess"}, "meta": {}, "error": None},200
 
