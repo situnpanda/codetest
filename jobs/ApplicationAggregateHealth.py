@@ -22,6 +22,8 @@ from InfrastructureMetrics.FileStorageMetricsPerf import getFileStoragePerf
 from ApplicationMetrics.WindowsServiceMetrics import getServiceUrlStatus
 from Modules.dataBase import queryDw, insert_data, exceptioninfo, connectToDw_AADpwd, connectToDw_AADpwd_Write, updateDw, insertDw
 import base64
+
+APP_BASE_URL = "https://itelemetry.providence.org"
  
 def to_url_safe(original_id):
     return base64.urlsafe_b64encode(original_id.encode()).decode().rstrip("=")
@@ -561,10 +563,11 @@ def generate_early_warning_html(tempEwDict):
             html += "</table>\n"
        
         try:
+            early_warning_url = f"{APP_BASE_URL}/CRCA%20application%20wallboard?earlyWarningId=EW{str(sequential_id).zfill(7)}"
             triggerData = {
                 "Summary": html,
-                "Acknowledge Issue URL" : f"itelemetry.providence.org/applicationHealth?Name={app_family}&Type=Application%20Family&EarlyWarningId={maskedId}&EarlyWarningUpdate=Acknowledge",
-                "Resolve Issue URL" : f"itelemetry.providence.org/applicationHealth?Name={app_family}&Type=Application%20Family&EarlyWarningId={maskedId}&EarlyWarningUpdate=Resolve",
+                "Acknowledge Issue URL" : early_warning_url,
+                "Resolve Issue URL" : early_warning_url,
                 "User Tagged": userTagged,
                 "Masked Event ID": maskedId,
                 "Sequential ID": "EW" + str(sequential_id).zfill(7),

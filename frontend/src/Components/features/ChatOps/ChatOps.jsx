@@ -73,9 +73,17 @@ export default function ChatOpsHeader({ backendSessionToken, supportGroup, prefe
     useEffect(()=>{
         var filters = localStorage.getItem("chatOpsViewAllWarningFilters") || null;
         var isOpen = sessionStorage.getItem("chatOpsViewAllWarningIsOpen") || "false";
+        var urlParams = new URLSearchParams(window.location.search);
+        var linkedEarlyWarningId = urlParams.get("earlyWarningId");
         console.log(isOpen)
-        setOpen(isOpen === "true" ? true : false);
-        if (filters) {
+        if (linkedEarlyWarningId) {
+            setIdFilter(linkedEarlyWarningId);
+            setApplicationFamilyFilter('');
+            setOpen(true);
+        } else {
+            setOpen(isOpen === "true" ? true : false);
+        }
+        if (filters && !linkedEarlyWarningId) {
             filters = JSON.parse(filters);
             setApplicationFamilyFilter(filters.applicationFamilyFilter || '');
             setIdFilter(filters.idFilter || '');
@@ -318,7 +326,7 @@ export default function ChatOpsHeader({ backendSessionToken, supportGroup, prefe
                 maxWidth="xl"
                 PaperProps={{ sx: { height: '90vh', borderRadius: 3, overflow: 'hidden', boxShadow: '0 20px 60px rgba(15, 23, 42, 0.24)' } }}
             >
-                <DialogTitle sx={{ px: { xs: 1, sm: 1.5 }, py: 1, borderBottom: '1px solid #E6E8EE', bgcolor: '#FFFFFF' }}>
+                <DialogTitle sx={{ px: { xs: 1, sm: 1.5 }, py: 1, bgcolor: '#FFFFFF' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
                         <Box sx={{ width: 32, height: 32, borderRadius: 1.5, display: 'grid', placeItems: 'center', bgcolor: '#E8F0FE', color: '#00338E' }}>
                             <WarningAmberRoundedIcon fontSize="small" />
@@ -341,7 +349,7 @@ export default function ChatOpsHeader({ backendSessionToken, supportGroup, prefe
                         onStatusUpdated={() => { fetchEarlyWarningsData(); fetchWarningEventsData(); }}
                     />
                 </DialogContent>
-                <DialogActions sx={{ px: { xs: 1, sm: 1.5 }, py: 0.75, borderTop: '1px solid #E6E8EE', bgcolor: '#FFFFFF' }}>
+                <DialogActions sx={{ px: { xs: 1, sm: 1.5 }, py: 0.75, bgcolor: '#FFFFFF' }}>
                     <Button onClick={handleCloseDialog} size="small" variant="outlined" sx={{ textTransform: 'none', borderColor: '#B8C5D1', color: '#29445F', fontWeight: 700 }}>Close</Button>
                 </DialogActions>
             </Dialog>
@@ -508,7 +516,7 @@ const Row = ({ warning, events, backendSessionToken, onStatusUpdated }) => {
     return (
         <React.Fragment>
             <Dialog open={ackState.open} onClose={() => !ackState.loading && setAckState((s) => ({ ...s, open: false }))} PaperProps={{ sx: { borderRadius: 3, minWidth: { sm: 400 } } }}>
-                <DialogTitle sx={{ px: 3, py: 2, borderBottom: '1px solid #E6E8EE' }}>
+                <DialogTitle sx={{ px: 3, py: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                         <Box sx={{ width: 36, height: 36, borderRadius: '50%', display: 'grid', placeItems: 'center', bgcolor: ackState.success === false ? '#FDECEC' : '#E8F5EE', color: ackState.success === false ? '#C62828' : '#16834A' }}>
                             <CheckCircleOutlineRoundedIcon fontSize="small" />
@@ -523,12 +531,12 @@ const Row = ({ warning, events, backendSessionToken, onStatusUpdated }) => {
                     {ackState.loading && <CircularProgress size={22} />}
                     <Typography color={ackState.success === false ? 'error' : 'text.primary'}>{ackState.message}</Typography>
                 </DialogContent>
-                <DialogActions sx={{ px: 3, py: 1.5, borderTop: '1px solid #E6E8EE' }}>
+                <DialogActions sx={{ px: 3, py: 1.5 }}>
                     <Button disabled={ackState.loading} onClick={() => setAckState((s) => ({ ...s, open: false }))} variant="contained" sx={{ textTransform: 'none', fontWeight: 700 }}>Close</Button>
                 </DialogActions>
             </Dialog>
             <Dialog open={resolveState.open} fullWidth maxWidth="lg" onClose={() => !resolveState.loading && setResolveState((s) => ({ ...s, open: false }))} PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
-                <DialogTitle sx={{ px: 3, py: 2, borderBottom: '1px solid #E6E8EE' }}>
+                <DialogTitle sx={{ px: 3, py: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                         <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: '#E8F0FE', color: '#00338E' }}><WarningAmberRoundedIcon /></Box>
                         <Box>
@@ -595,7 +603,7 @@ const Row = ({ warning, events, backendSessionToken, onStatusUpdated }) => {
                         <Typography color={resolveState.success === false ? 'error' : 'text.primary'} sx={{ py: 2 }}>{resolveState.message}</Typography>
                     )}
                 </DialogContent>
-                <DialogActions sx={{ px: 3, py: 1.5, borderTop: '1px solid #E6E8EE', bgcolor: '#FFFFFF' }}>
+                <DialogActions sx={{ px: 3, py: 1.5, bgcolor: '#FFFFFF' }}>
                     {!resolveState.loading && resolveState.events.length > 0 && (
                         <Button variant="contained" disabled={!canSubmitResolve} onClick={() => submitResolve(resolveState.warningId, pendingResolveEvents)} sx={{ textTransform: 'none', fontWeight: 700 }}>Resolve warning</Button>
                     )}
