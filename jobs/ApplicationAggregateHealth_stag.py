@@ -39,7 +39,7 @@ import base64
 ENVIRONMENT_LABEL = "staging"
 EARLY_WARNING_TABLE = "[Early Warnings Stag]"
 POTENTIAL_ISSUES_TABLE = "[Potential Issues Stag]"
-APP_HEALTH_HOST = "itelemetry.testwu2.cloud.providence.org"
+APP_BASE_URL = "https://itelemetry.testwu2.cloud.providence.org"
  
 def to_url_safe(original_id):
     return base64.urlsafe_b64encode(original_id.encode()).decode().rstrip("=")
@@ -408,7 +408,7 @@ def createNewEarlyWarnings(df_newPotentialIssues):
                     "Support Group": supportGroup,
                     "Time Generated": tempTime,
                     "Last Updated" : tempTime,
-                    "User Tagged": []
+                    "User Tagged": ["karthiksaivarma.penmetsa@providence.org"]
                 })
                
                 df_temp["Early Warning ID"] = df_temp.apply(lambda x: eventId if x["Application Family"].upper()==appFamily.upper() else x["Early Warning ID"], axis=1)
@@ -581,10 +581,11 @@ def generate_early_warning_html(tempEwDict):
             html += "</table>\n"
        
         try:
+            early_warning_url = f"{APP_BASE_URL}/CRCA%20application%20wallboard?earlyWarningId=EW{str(sequential_id).zfill(7)}"
             triggerData = {
                 "Summary": html,
-                "Acknowledge Issue URL" : f"{APP_HEALTH_HOST}/applicationHealth?Name={app_family}&Type=Application%20Family&EarlyWarningId={maskedId}&EarlyWarningUpdate=Acknowledge",
-                "Resolve Issue URL" : f"{APP_HEALTH_HOST}/applicationHealth?Name={app_family}&Type=Application%20Family&EarlyWarningId={maskedId}&EarlyWarningUpdate=Resolve",
+                "Acknowledge Issue URL" : early_warning_url,
+                "Resolve Issue URL" : early_warning_url,
                 "User Tagged": userTagged,
                 "Masked Event ID": maskedId,
                 "Sequential ID": "EW" + str(sequential_id).zfill(7),
