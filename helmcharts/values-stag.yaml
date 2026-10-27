@@ -17,7 +17,7 @@ backend:
   replicas: 1
   image:
     repository: artifactory.wu2.cloud.providence.org/docker-itelemetryplatformengineering/itelemetry-backend
-    tag: release-14.10.26-9f329f6
+    tag: release-26.10.26-027b26a
     pullPolicy: Always
 
   service:
@@ -46,7 +46,7 @@ frontend:
   replicas: 1
   image:
     repository: artifactory.wu2.cloud.providence.org/docker-itelemetryplatformengineering/itelemetry-frontend
-    tag: release-14.10.26-9f329f6
+    tag: release-26.10.26-027b26a
     pullPolicy: Always
 
   service:
