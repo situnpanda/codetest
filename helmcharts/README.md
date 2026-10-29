@@ -2,7 +2,7 @@
 
 Helm chart to deploy the iTelemetry backend (Flask/gunicorn) and frontend
 (Vite SPA served by nginx) to AKS with Azure Workload Identity, Azure Key Vault
-CSI-mounted TLS, nginx ingress, and Linkerd `Server` policies.
+CSI-mounted TLS, nginx ingress, and Linkerd `Server` policie.
 
 ## Layout
 
